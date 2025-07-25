@@ -18,7 +18,7 @@ def desenhar_botao():
     screen.blit(texto, (botao_rect.x + 10, botao_rect.y + 5))
 
 # Gerar grafo
-cidades, arestas = gerador_tabuleiro.gerar_grafo(seed=8772254598625556543,jogadores=2,camadas=2)
+cidades, arestas, list_adj = gerador_tabuleiro.gerar_grafo()
 
 # Loop principal
 running = True
@@ -28,15 +28,18 @@ while running:
             running = False
         elif event.type == pygame.MOUSEBUTTONDOWN:
             if botao_rect.collidepoint(event.pos):
-                cidades, arestas = gerador_tabuleiro.gerar_grafo(jogadores=4,camadas=2)
+                cidades, arestas, list_adj = gerador_tabuleiro.gerar_grafo()
 
     screen.fill((255, 255, 255))
 
     # Desenhar arestas
-    for a, b in arestas:
+    for a, b, p in arestas:
         pos_a = cidades[a]["pos"]
         pos_b = cidades[b]["pos"]
         pygame.draw.line(screen, (200, 200, 200), pos_a, pos_b, 2)
+        texto_peso = font.render(f"{p}", True, (0, 0, 0))
+        texto_rect_peso = texto_peso.get_rect(center=(pos_a[0]+30,pos_a[1]))
+        screen.blit(texto_peso, texto_rect_peso)
 
     # Desenhar cidades
     for nome, info in cidades.items():

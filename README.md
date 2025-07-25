@@ -12,13 +12,19 @@ Cada jogador deve conquistar e manter o maior número de cidades possíveis util
 ## 🗺️ Estrutura do Tabuleiro
 
 - Grafo simples e conexo com cidades (vértices) e estradas (arestas).
-- Cada cidade tem uma população.
-- Cada aresta tem uma capacidade máxima de tropas (não implementado na versão base).
+- Cada cidade possui uma população.
+- Cada aresta tem uma capacidade máxima de tropas 
 - Os jogadores começam com uma base conectada à camada inicial.
 
-> [!NOTE]  
-> é necessario mais algumas regras de criação para fazer o jogo justo aos dois lados quando o tabuleiro for gerado:
-> Simetria parcial, Controle populacional e de distância, Progressão estratégica
+### 🔧 Geração do Mapa
+
+O sistema de geração de mapas agora implementa **simetria parcial** entre os lados, garantindo:
+- Distribuição equilibrada de cidades.
+- Populações similares para cada jogador.
+- Condições estratégicas iniciais justas.
+
+> [!NOTE]
+> Ainda é possível aplicar regras adicionais de controle populacional e de distância, bem como progressão estratégica, para maior balanceamento.
 
 ## 🔄 Turnos
 
@@ -31,28 +37,31 @@ O jogo é jogado por turnos. Cada turno representa o deslocamento de uma aresta 
 ## 🪖 Tropas
 
 - Tropas são enviadas da base com uma **rota definida**.
-- Só podem passar por cidades já conquistadas.
-- Se entrarem em cidade inimiga:
-  - Perdem 50% da força **antes** do combate.
-- Se entrarem em cidade neutra:
-  - Perdem 10% e **recuam automaticamente**.
+- Só podem atravessar cidades já conquistadas.
 - Tropas estacionadas só podem recuar.
+- Para conquistar uma cidade neutra os jogador deve atacar a cidade com o numero de tropas maior que a população
+- Se entrarem em cidade inimiga **sem atacar**:
+  - Perdem 50% da força **antes** do combate.
+- Se entrarem em cidade neutra **sem atacar**:
+  - Perdem 10% e **recuam automaticamente**.
 
 ## 🚚 Transporte de População
 
 - Cada jogador possui **um único transporte**.
 - Só pode atravessar cidades aliadas.
+- Movimento entre cidades leva 1 turno.
 - Se entra em cidade neutra:
   - População foge para a cidade.
 - Se entra em cidade inimiga:
   - Transporte é destruído e a população capturada.
-- Movimento entre cidades leva 1 turno.
+- Caso tranporte seja destruido leva 1 turno para ele ser reconstruido na base
 
 ## 🔗 Rede de Suprimentos
 
 Ao final de cada turno, o jogador deve decidir quais arestas manter. Cidades que perdem conexão com a base são **perdidas**.
-> [!NOTE]  
-> retornam ao neutro
+
+> [!NOTE]
+> Cidades desconectadas retornam ao estado neutro.
 
 ## 🏆 Condições de Vitória
 
@@ -60,8 +69,8 @@ Ao final de cada turno, o jogador deve decidir quais arestas manter. Cidades que
 - **Derrota:** perder a própria base.
 - **Empate:** nenhuma base capturada até o final das rodadas.
 
-> [!NOTE]  
-> numero de cidades sobre o poder do jogador ao final pode ser contado como criterio de desempate
+> [!NOTE]
+> O número de cidades sob controle de cada jogador pode ser usado como critério de desempate.
 
 ## 📥 Entrada para a IA
 
