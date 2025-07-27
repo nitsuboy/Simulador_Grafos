@@ -1,93 +1,80 @@
-# Conquista e Sobrevivência
+# Simulador de Conquista e Estratégia: Manual Oficial
 
-Jogo estratégico baseado em grafos onde dois jogadores competem utilizando suas próprias IAs.
+## 1. Descrição Geral
 
-## 🎯 Objetivo
+Bem-vindo ao Simulador de Conquista e Estratégia! Este é um jogo de guerra por turnos onde a vitória é forjada tanto pela força militar quanto pela supremacia econômica e logística. Os jogadores devem expandir seus impérios, gerenciar uma rede de suprimentos custosa e alimentar uma máquina de guerra que converte população em poderio militar. A estratégia está no planejamento de ordens que se desdobrarão ao longo de múltiplos turnos.
 
-Cada jogador deve conquistar e manter o maior número de cidades possíveis utilizando estratégias baseadas em algoritmos de grafos. O jogo termina quando:
+## 2. Condições de Vitória e Derrota
 
-- Um jogador perde sua base, ou
-- O número máximo de rodadas é atingido.
+- **Vitória:** Capturar a Base de um oponente.
+- **Derrota:** Ocorre quando:
+  - Sua Base é capturada.
+  - O número de tropas na sua Base chega a zero (Base = HP do jogador).
+  - A falência econômica leva à derrota imediata.
 
-## 🗺️ Estrutura do Tabuleiro
+## 3. A Estrutura do Turno
 
-- Grafo simples e conexo com cidades (vértices) e estradas (arestas).
-- Cada cidade tem uma população.
-- Cada aresta tem uma capacidade máxima de tropas (não implementado na versão base).
-- Os jogadores começam com uma base conectada à camada inicial.
+O turno funciona como um movimento anunciado no Xadrez: primeiro se declaram todas as ações, depois elas são executadas simultaneamente.
 
-> [!NOTE]  
-> é necessario mais algumas regras de criação para fazer o jogo justo aos dois lados quando o tabuleiro for gerado:
-> Simetria parcial, Controle populacional e de distância, Progressão estratégica
+- **Fase de Ordens:** Jogadores enviam ordens para Tropas e Transporte.
+- **Fase de Execução:** Todas as unidades executam um passo das ordens anteriores.
+- **Fase de Custo:** Os custos das rotas são calculados e debitados da Base.
 
-## 🔄 Turnos
+> Ordens são **imutáveis**, salvo exceções explícitas como recuo forçado.
 
-O jogo é jogado por turnos. Cada turno representa o deslocamento de uma aresta e é processado da seguinte forma:
+## 4. Posse e Suprimento
 
-1. O jogo coleta as decisões das duas IAs.
-2. Executa o movimento das tropas e transporte.
-3. Atualiza o controle de cidades e rede de suprimentos.
+Para manter uma cidade:
 
-## 🪖 Tropas
+- **Ocupação Militar:** Ao menos 1 Tropa deve estar estacionada.
+- **Rede de Suprimentos:** Deve haver caminho contínuo até sua Base.
+  - Custo: `Peso da Aresta / 100`, debitado da Base.
+  - Se a cidade for isolada, ela se torna Neutra e tropas nela são perdidas.
 
-- Tropas são enviadas da base com uma **rota definida**.
-- Só podem passar por cidades já conquistadas.
-- Se entrarem em cidade inimiga:
-  - Perdem 50% da força **antes** do combate.
-- Se entrarem em cidade neutra:
-  - Perdem 10% e **recuam automaticamente**.
-- Tropas estacionadas só podem recuar.
+## 5. Ações e Combate
 
-## 🚚 Transporte de População
+### 5.1. Tropas
 
-- Cada jogador possui **um único transporte**.
-- Só pode atravessar cidades aliadas.
-- Se entra em cidade neutra:
-  - População foge para a cidade.
-- Se entra em cidade inimiga:
-  - Transporte é destruído e a população capturada.
-- Movimento entre cidades leva 1 turno.
+#### Tipos de Ataque
 
-## 🔗 Rede de Suprimentos
+- **Cidade Neutra:** Defesa = População. Se Força da Tropa ≥ População, a cidade é conquistada.
+- **Cidade Inimiga:** Defesa = Força da Tropa inimiga. Combate direto 1v1. Vencedor perde força equivalente à do derrotado.
 
-Ao final de cada turno, o jogador deve decidir quais arestas manter. Cidades que perdem conexão com a base são **perdidas**.
-> [!NOTE]  
-> retornam ao neutro
+#### Penalidade de 50%
 
-## 🏆 Condições de Vitória
+Aplicável apenas a:
 
-- **Vitória:** capturar a base inimiga.
-- **Derrota:** perder a própria base.
-- **Empate:** nenhuma base capturada até o final das rodadas.
+- Ataque direto à Base Inimiga.
+- Tentar permanecer numa cidade inimiga guarnecida sem combate prévio.
 
-> [!NOTE]  
-> numero de cidades sobre o poder do jogador ao final pode ser contado como criterio de desempate
+#### Comportamentos
 
-## 📥 Entrada para a IA
+- **Atacar -> Permanecer:** Conquista e ocupa a cidade.
+- **Atacar (Raid):** Retorna à Base após o ataque.
+- **Recuar:** Tropas voltam à Base por ordem.
 
-Cada IA recebe um dicionário com:
-- Estado das cidades: quem controla e população.
-- Tropas próprias: posição e rota.
-- Transporte: localização e carga.
-- Arestas ativas.
+### 5.2. Transporte
 
-## 📤 Saída Esperada da IA
+- Transporta População à Base para conversão em Tropas.
+- Pode levar População a outra cidade (sujeito a penalidades).
+- **Falha em Cidade Neutra:** Perde 10% da carga, retorna à Base com 90%.
+- **Falha em Cidade Inimiga:** Transporte destruído, carga capturada. Reaparece na Base após 1 turno.
 
-A IA deve retornar:
+## Entrada para a IA
 
-```python
-{
-  "novas_tropas": [
-    # Exemplo:
-    # {"rota": ["base", "c1", "c3"], "acao": "aguarda"},
-    # {"rota": ["base", "c2", "c5"], "acao": "ataca"},
-  ],
-  "rota_transporte": [
-    # Exemplo:
-    # "base", "c3", "c7", "base"
-  ],
-  "manutencao": [
-    # Exemplo:
-    # ("c1", "c3"), ("c3", "c5")
-  ]
-}
+Cada IA recebe:
+
+- Estado das cidades (controle e população).
+- Tropas próprias (posição e rota).
+- Transporte (localização e carga).
+
+## Formato de Saída Esperada da IA
+
+```
+Novas Tropas:
+Tropa p1 3: base -> c1 -> c3 -> ataca c5 -> permanece
+Tropa p1 4: base -> c2 -> ataca c7
+
+Transporte:
+caminho: base -> c3 -> c8
+```

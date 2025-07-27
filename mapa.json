@@ -1,0 +1,172 @@
+{
+  "cidades": [
+    {
+      "id": "base_j0",
+      "populacao": 100
+    },
+    {
+      "id": "base_j1",
+      "populacao": 100
+    },
+    {
+      "id": "c1_0",
+      "populacao": 58
+    },
+    {
+      "id": "c2_0",
+      "populacao": 56
+    },
+    {
+      "id": "c3_0",
+      "populacao": 67
+    },
+    {
+      "id": "c4_0",
+      "populacao": 70
+    },
+    {
+      "id": "c5_0",
+      "populacao": 35
+    },
+    {
+      "id": "c6_0",
+      "populacao": 75
+    },
+    {
+      "id": "c1_1",
+      "populacao": 58
+    },
+    {
+      "id": "c2_1",
+      "populacao": 56
+    },
+    {
+      "id": "c3_1",
+      "populacao": 67
+    },
+    {
+      "id": "c4_1",
+      "populacao": 70
+    },
+    {
+      "id": "c5_1",
+      "populacao": 35
+    },
+    {
+      "id": "c6_1",
+      "populacao": 75
+    }
+  ],
+  "arestas": [
+    {
+      "de": "base_j0",
+      "para": "c1_0",
+      "peso": 58
+    },
+    {
+      "de": "base_j0",
+      "para": "c2_0",
+      "peso": 56
+    },
+    {
+      "de": "base_j0",
+      "para": "c3_0",
+      "peso": 67
+    },
+    {
+      "de": "base_j0",
+      "para": "c4_0",
+      "peso": 70
+    },
+    {
+      "de": "base_j1",
+      "para": "c1_1",
+      "peso": 58
+    },
+    {
+      "de": "base_j1",
+      "para": "c2_1",
+      "peso": 56
+    },
+    {
+      "de": "base_j1",
+      "para": "c3_1",
+      "peso": 67
+    },
+    {
+      "de": "base_j1",
+      "para": "c4_1",
+      "peso": 70
+    },
+    {
+      "de": "c1_0",
+      "para": "c5_0",
+      "peso": 35
+    },
+    {
+      "de": "c2_0",
+      "para": "c5_0",
+      "peso": 35
+    },
+    {
+      "de": "c3_0",
+      "para": "c5_0",
+      "peso": 35
+    },
+    {
+      "de": "c4_0",
+      "para": "c5_0",
+      "peso": 35
+    },
+    {
+      "de": "c1_0",
+      "para": "c5_0",
+      "peso": 35
+    },
+    {
+      "de": "c4_0",
+      "para": "c6_0",
+      "peso": 75
+    },
+    {
+      "de": "c1_1",
+      "para": "c6_1",
+      "peso": 75
+    },
+    {
+      "de": "c2_1",
+      "para": "c6_1",
+      "peso": 75
+    },
+    {
+      "de": "c3_1",
+      "para": "c6_1",
+      "peso": 75
+    },
+    {
+      "de": "c4_1",
+      "para": "c5_1",
+      "peso": 35
+    },
+    {
+      "de": "c3_1",
+      "para": "c5_1",
+      "peso": 35
+    },
+    {
+      "de": "c4_1",
+      "para": "c6_1",
+      "peso": 75
+    },
+    {
+      "de": "c6_0",
+      "para": "c5_1",
+      "peso": 35
+    },
+    {
+      "de": "c6_0",
+      "para": "c6_1",
+      "peso": 75
+    }
+  ]
+}
