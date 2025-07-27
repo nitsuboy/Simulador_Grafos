@@ -78,3 +78,14 @@ Tropa p1 4: base -> c2 -> ataca c7
 Transporte:
 caminho: base -> c3 -> c8
 ```
+
+Como será lida uma única ordem de tropa pelo motor:
+
+```
+tropa.fila_de_comandos = [
+    {'tipo': 'MOVER', 'alvo': 'c1'},
+    {'tipo': 'MOVER', 'alvo': 'c3'},
+    {'tipo': 'ATACAR', 'alvo': 'c5'},
+    {'tipo': 'PERMANECER'} 
+]
+```

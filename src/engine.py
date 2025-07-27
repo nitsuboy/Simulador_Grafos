@@ -115,7 +115,54 @@ class Jogo:
             for aresta in dados_mapa.get('arestas', []):
                 self.mapa.adicionar_aresta(**aresta)
 
-    def processar_turno(self, ordens_dos_bots):
-        """Processa as ordens dos bots e atualiza o estado do jogo."""
-        pass
+    def processar_turno(self, ordem_jogadores):
+        # TODO: Instanciar tropas e novos comandos para o turno atual (Preparação do Turno)
+        # NOTE: Essa preparação pode depender do estado atual do jogo ou de eventos aleatórios
         
+        # Etapa 1: Processamento de Comandos
+        for jogador in self.jogadores:
+            for tropa in list(jogador.tropas_ativas): 
+                if not tropa.fila_de_comandos:
+                    # TODO: Implementar lógica para decidir o que fazer quando a tropa não tem comandos
+                    # FIXME: Tropas sem comandos ficam inativas indefinidamente, até que recebam comando para RECUAR
+                    continue
+
+                comando_atual = tropa.fila_de_comandos[0]
+
+                if comando_atual['tipo'] == 'MOVER':
+                    # TODO: Implementar movimentação da tropa passo a passo até o alvo
+                    # NOTE: Assumindo que o caminho já está definido na fila_de_comandos
+                    proximo_passo = tropa.fila_de_comandos.pop(0)['alvo']
+                    tropa.localizacao = proximo_passo  # Simplificação para o MVP
+                    # FIXME: Falta validação se o movimento é possível ou permitido
+
+                elif comando_atual['tipo'] == 'ATACAR':
+                    # TODO: Marcar tropa como pronta para atacar e armazenar o alvo
+                    tropa.estado = 'ATACANDO'
+                    tropa.alvo_de_ataque = comando_atual['alvo']
+                    tropa.fila_de_comandos.pop(0)
+                    # NOTE: A resolução do ataque ocorre apenas na próxima etapa
+
+                # TODO: Adicionar lógica para outros comandos como PERMANECER, RECUAR
+                # FIXME: Outros tipos de comando ainda não são tratados
+
+        # TODO: Calcular custos de manutenção e debitar recursos (Etapa 2)
+        # FIXME: Ausência de penalidades pode gerar tropas "infinitas"
+        
+        # Etapa 3: Resolução de Combates
+        for cidade in self.mapa.cidades.values():
+            atacantes_nesta_cidade = []
+            for jogador in self.jogadores:
+                for tropa in jogador.tropas_ativas:
+                    if tropa.estado == 'ATACANDO' and tropa.alvo_de_ataque == cidade.id:
+                        atacantes_nesta_cidade.append(tropa)
+
+            if atacantes_nesta_cidade:
+                # TODO: Resolver combate para esta cidade
+                # NOTE: Esse método deve lidar com vitórias, derrotas e consequências
+                self.resolver_combate(cidade, atacantes_nesta_cidade)
+        
+        # Etapa 4: Atualizações de Estado Pós-combate
+        # TODO: Processar atualizações de estado pós-combate (Etapa 4)
+        # NOTE: Atualizações como permanência na cidade conquistada ou retirada
+
