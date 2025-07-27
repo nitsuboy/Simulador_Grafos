@@ -10,163 +10,153 @@
     },
     {
       "id": "c1_0",
-      "populacao": 58
+      "populacao": 76
     },
     {
       "id": "c2_0",
-      "populacao": 56
+      "populacao": 30
     },
     {
       "id": "c3_0",
-      "populacao": 67
+      "populacao": 49
     },
     {
       "id": "c4_0",
-      "populacao": 70
+      "populacao": 42
     },
     {
       "id": "c5_0",
-      "populacao": 35
+      "populacao": 47
     },
     {
       "id": "c6_0",
-      "populacao": 75
+      "populacao": 66
     },
     {
       "id": "c1_1",
-      "populacao": 58
+      "populacao": 76
     },
     {
       "id": "c2_1",
-      "populacao": 56
+      "populacao": 30
     },
     {
       "id": "c3_1",
-      "populacao": 67
+      "populacao": 49
     },
     {
       "id": "c4_1",
-      "populacao": 70
+      "populacao": 42
     },
     {
       "id": "c5_1",
-      "populacao": 35
+      "populacao": 47
     },
     {
       "id": "c6_1",
-      "populacao": 75
+      "populacao": 66
     }
   ],
   "arestas": [
     {
       "de": "base_j0",
       "para": "c1_0",
-      "peso": 58
+      "peso": 76
     },
     {
       "de": "base_j0",
       "para": "c2_0",
-      "peso": 56
+      "peso": 30
     },
     {
       "de": "base_j0",
       "para": "c3_0",
-      "peso": 67
-    },
-    {
-      "de": "base_j0",
-      "para": "c4_0",
-      "peso": 70
+      "peso": 49
     },
     {
       "de": "base_j1",
       "para": "c1_1",
-      "peso": 58
+      "peso": 76
     },
     {
       "de": "base_j1",
       "para": "c2_1",
-      "peso": 56
+      "peso": 30
     },
     {
       "de": "base_j1",
       "para": "c3_1",
-      "peso": 67
-    },
-    {
-      "de": "base_j1",
-      "para": "c4_1",
-      "peso": 70
+      "peso": 49
     },
     {
       "de": "c1_0",
       "para": "c5_0",
-      "peso": 35
+      "peso": 47
     },
     {
       "de": "c2_0",
-      "para": "c5_0",
-      "peso": 35
+      "para": "c4_0",
+      "peso": 42
     },
     {
       "de": "c3_0",
       "para": "c5_0",
-      "peso": 35
-    },
-    {
-      "de": "c4_0",
-      "para": "c5_0",
-      "peso": 35
+      "peso": 47
     },
     {
       "de": "c1_0",
-      "para": "c5_0",
-      "peso": 35
+      "para": "c4_0",
+      "peso": 42
     },
     {
-      "de": "c4_0",
+      "de": "c2_0",
+      "para": "c5_0",
+      "peso": 47
+    },
+    {
+      "de": "c2_0",
       "para": "c6_0",
-      "peso": 75
+      "peso": 66
     },
     {
       "de": "c1_1",
       "para": "c6_1",
-      "peso": 75
+      "peso": 66
     },
     {
       "de": "c2_1",
       "para": "c6_1",
-      "peso": 75
+      "peso": 66
     },
     {
       "de": "c3_1",
-      "para": "c6_1",
-      "peso": 75
+      "para": "c4_1",
+      "peso": 42
     },
     {
-      "de": "c4_1",
-      "para": "c5_1",
-      "peso": 35
+      "de": "c3_1",
+      "para": "c4_1",
+      "peso": 42
     },
     {
       "de": "c3_1",
       "para": "c5_1",
-      "peso": 35
+      "peso": 47
     },
     {
-      "de": "c4_1",
+      "de": "c1_1",
       "para": "c6_1",
-      "peso": 75
+      "peso": 66
+    },
+    {
+      "de": "c5_0",
+      "para": "c6_1",
+      "peso": 66
     },
     {
       "de": "c6_0",
-      "para": "c5_1",
-      "peso": 35
-    },
-    {
-      "de": "c6_0",
-      "para": "c6_1",
-      "peso": 75
+      "para": "c4_1",
+      "peso": 42
     }
   ]
 }
