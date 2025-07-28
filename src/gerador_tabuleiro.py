@@ -3,6 +3,12 @@ import random
 import sys
 import math
 
+# Constantes
+LARGURA = 800
+ALTURA = 800
+RAIO = 25
+MAX_Y = 250
+
 def rotate(origin, point, angle):
     ox, oy = origin
     px, py = point
@@ -18,11 +24,14 @@ def arestas_para_lista_adjacencia_nao_direcionado(arestas):
         grafo[b].append((a, p))
     return dict(grafo)
 
-
-def gerar_grafo(camadas=None, seed=None, jogadores=2, ilha_central=False,max_meio=2):
-
+def gerar_grafo(
+    camadas: list[int] = None,
+    seed: int = None,
+    num_jogadores: int = 2,
+    ilha_central: bool = False,
+    max_meio: int = 2
+):
     # Tratamento de argumentos
-    # Geramento de seed ja que o random n disponibiliza a seed utilizada
     if not seed:
         seed = random.randrange(sys.maxsize)
     random.seed(seed)
@@ -30,142 +39,195 @@ def gerar_grafo(camadas=None, seed=None, jogadores=2, ilha_central=False,max_mei
 
     if not camadas:
         camadas = []
-        for i in range(random.randrange(2, 4)):
+        for _ in range(random.randrange(2, 4)):
             camadas.append(random.randrange(2, 5))
 
-    # Tamanho maximo de onde irão se encontrar os nos, detalhe de vizualização
-    largura, altura = 800, 800
-    raio = 25
-    max_y = 250
-
     # Conjunto contendo todos os nós
-    cidades = {}
+    grafo_cidades = {}
+    contador_nomes = 1
+    regioes_jogadores = []
+    cidades_base = {}
+    camadas_base = []
+    tropas_disponiveis = 100  # Tropas iniciais na base
+
+    arestas = []
+    conjunto_arestas = set()
+
+    """
+    Geração de nós.
+    """
 
     # Inicializa as bases dos jogadores
-    for j in range(jogadores):
-        cidades[f"base_j{j}"] = {
-            "pos": rotate((largura // 2, altura // 2), (raio, altura // 2), (6.283185/jogadores)*j),
+    for jogador in range(num_jogadores):
+        grafo_cidades[f"basej_{jogador}"] = {
+            "pos": rotate((LARGURA // 2, ALTURA // 2), (RAIO, ALTURA // 2), (6.283185 / num_jogadores) * jogador),
             "pop": 100
         }
 
-    nome_contador = 1
-    # regiões espelhadas
-    regiao_jogadores = []
-    # Conjunto de nós para que serão espelhados
-    cidades_base = {}
-    camadas_base = []
-    # Processo de fazer as camadas nas quais o espelhamento vai se basear
-    tropas_disponiveis = 100  # Tropas iniciais na base
-    
-    for i in range(len(camadas)):
-        camada = []
-        n_cidades = camadas[i]
+    # Balanceia as camadas para que a soma das populações seja igual e tenha ao menos uma conquistavel
+    for camada_idx in range(len(camadas)):
+        camada_atual = []
+        num_cidades = camadas[camada_idx]
 
-        x = raio + (i + 1) * ((largura // 2) // (len(camadas) + 1))
-        y_step = (altura - 2 * max_y) // (n_cidades + 1)
-        
+        x_pos = RAIO + (camada_idx + 1) * ((LARGURA // 2) // (len(camadas) + 1))
+        y_step = (ALTURA - 2 * MAX_Y) // (num_cidades + 1)
 
-        # Definir população total da camada (progressiva)
-        soma_pop = (tropas_disponiveis * (n_cidades )) + i * 120  # ajustável
+        soma_populacao = (tropas_disponiveis * num_cidades) + camada_idx * 120
+        conquista_minima = int(tropas_disponiveis * random.uniform(0.7, 0.9))
 
-        # Definir população mínima de uma cidade que pode ser conquistada com as tropas atuais
-        conquista_minima = int(tropas_disponiveis * random.uniform(0.7,0.9))
+        restante_populacao = soma_populacao - conquista_minima
+        cidades_restantes = num_cidades - 1
 
-        # Distribuir população: 1 cidade com população <= conquista_minima, restante distribui o resto
-        restante = soma_pop - conquista_minima
-        restantes_cidades = n_cidades - 1
-        
-        if restantes_cidades <= 0:
-            pops = [conquista_minima]
+        if cidades_restantes <= 0:
+            populacoes = [conquista_minima]
         else:
-            base = restante // restantes_cidades
-            sobra = restante % restantes_cidades
-            pops = [base] * restantes_cidades
-            for i in range(sobra):
-                pops[i % restantes_cidades] += 1
-            pops.append(conquista_minima)  # garante cidade acessível
+            base_populacao = restante_populacao // cidades_restantes
+            sobra_populacao = restante_populacao % cidades_restantes
+            populacoes = [base_populacao] * cidades_restantes
+            for i in range(sobra_populacao):
+                populacoes[i % cidades_restantes] += 1
+            populacoes.append(conquista_minima)
 
-        # Adiciona leve variação para não parecer artificial
-        pops = [max(10, int(p * random.uniform(0.9, 1.1))) for p in pops]
+        populacoes = [int(pop * random.uniform(0.9, 1.1)) for pop in populacoes]
 
-        tropas_disponiveis = sum(pops)
-        for j in range(n_cidades):
-            nome = f"c{nome_contador}"
-            y = max_y + (j + 1) * y_step
-            cidades_base[nome] = {
-                "pos": [x, y],
-                "pop": pops[j]
+        tropas_disponiveis = sum(populacoes)
+        
+        for cidade_idx in range(num_cidades):
+            nome_cidade = f"c{contador_nomes}"
+            y_pos = MAX_Y + (cidade_idx + 1) * y_step
+            cidades_base[nome_cidade] = {
+                "pos": [x_pos, y_pos],
+                "pop": populacoes[cidade_idx]
             }
-            camada.append(nome)
-            nome_contador += 1
+            camada_atual.append(nome_cidade)
+            contador_nomes += 1
 
-        camadas_base.append(camada)
+        camadas_base.append(camada_atual)
 
-    # Processo de espelhamento da camada base em as demais para ter uma simetria
-    for j in range(jogadores):
+    # Processo de espelhamento da camada base para criar simetria
+    for jogador in range(num_jogadores):
         camadas_jogador = []
-        for c in camadas_base:
-            camada = []
-            for nome in c:
-                pos_x, pos_y = cidades_base[nome]["pos"]
-                nome_espelhado = f"{nome}_{j}"
-                cidades[nome_espelhado] = {
-                    "pos": rotate((largura // 2, altura // 2), (pos_x, pos_y), (6.283185/jogadores)*j),
-                    "pop": cidades_base[nome]["pop"]
+        for camada_base in camadas_base:
+            camada_espelhada = []
+            for nome_cidade in camada_base:
+                pos_x, pos_y = cidades_base[nome_cidade]["pos"]
+                nome_espelhado = f"{nome_cidade}_{jogador}"
+                grafo_cidades[nome_espelhado] = {
+                    "pos": rotate((LARGURA // 2, ALTURA // 2), (pos_x, pos_y), (6.283185 / num_jogadores) * jogador),
+                    "pop": cidades_base[nome_cidade]["pop"]
                 }
-                camada.append(nome_espelhado)
-            camadas_jogador.append(camada)
-        regiao_jogadores.append(camadas_jogador)
+                camada_espelhada.append(nome_espelhado)
+            camadas_jogador.append(camada_espelhada)
+        camadas_jogador.insert(0, [f"basej_{jogador}"])
+        regioes_jogadores.append(camadas_jogador)
 
-    # Geração das arestas
-    arestas = []
-    arestas_set = set()
+    """
+    Geração de arestas entre as camadas.
+    """
+    # Adiciona as arestas evitando repetições
+    def adicionar_aresta(no_a, no_b, peso):
+        chave_aresta = tuple(sorted([no_a, no_b]))
+        if chave_aresta not in conjunto_arestas:
+            arestas.append((no_a, no_b, peso))
+            conjunto_arestas.add(chave_aresta)
+    """
+    # Conectando a primeira camada com a base
+    for jogador in range(num_jogadores):
+        for camada_idx in range(1, len(regioes_jogadores[jogador])):
+            camada_atual = regioes_jogadores[jogador][camada_idx]
+            camada_anterior = regioes_jogadores[jogador][camada_idx - 1]
+            ja_escolhidas = set()
+            
+            for cidade_idx, nome_cidade in enumerate(camada_atual):
+                conexoes = []
+                conexoes.extend(camada_anterior)
+                if cidade_idx + 1 < len(camada_atual) and camada_atual[cidade_idx + 1] not in ja_escolhidas:
+                    conexoes.append(camada_atual[cidade_idx + 1])
+                if cidade_idx - 1 < 0 and camada_atual[cidade_idx - 1] not in ja_escolhidas:
+                    conexoes.append(camada_atual[cidade_idx - 1])
+                
+                num_conexoes = random.randint(1, min(4,len(conexoes)))
+                conexoes_escolhidas = [camada_anterior[random.randint(0, len(camada_anterior) - 1)]]
+                conexoes_escolhidas.extend(random.sample(conexoes, num_conexoes-1))
+                peso_total = grafo_cidades[nome_cidade]["pop"]
+                peso_medio = peso_total // num_conexoes
+                pesos = []
+                
+                for i in range(num_conexoes):
+                    if i == num_conexoes - 1:
+                        # Ajustar o último peso para compensar
+                        peso = peso_total - sum(pesos)
+                    else:
+                        peso = random.randint(peso_medio//75, peso_medio + peso_medio//25)
+                    pesos.append(peso)
+                
+                for conexao, peso in zip(conexoes_escolhidas, pesos):
+                    ja_escolhidas.add(tuple(sorted([nome_cidade, conexao])))
+                    adicionar_aresta(nome_cidade, conexao, peso)
+    
+    """
+    for camada_idx in range(1, len(regioes_jogadores[0])):
+            camada_atual = regioes_jogadores[0][camada_idx]
+            camada_anterior = regioes_jogadores[0][camada_idx - 1]
+            ja_escolhidas = set()
+            
+            for cidade_idx, nome_cidade in enumerate(camada_atual):
+                conexoes = []
+                conexoes.extend(camada_anterior)
+                if cidade_idx + 1 < len(camada_atual) and camada_atual[cidade_idx + 1] not in ja_escolhidas:
+                    conexoes.append(camada_atual[cidade_idx + 1])
+                if cidade_idx - 1 < 0 and camada_atual[cidade_idx - 1] not in ja_escolhidas:
+                    conexoes.append(camada_atual[cidade_idx - 1])
+                
+                num_conexoes = random.randint(1, min(4,len(conexoes)))
+                conexoes_escolhidas = [camada_anterior[random.randint(0, len(camada_anterior) - 1)]]
+                conexoes.remove(conexoes_escolhidas[0])  # Remove a conexão já escolhida
+                conexoes_escolhidas.extend(random.sample(conexoes, num_conexoes-1))
+                peso_total = grafo_cidades[nome_cidade]["pop"]
+                peso_medio = peso_total // num_conexoes
+                pesos = []
+                
+                for i in range(len(conexoes_escolhidas)):
+                    peso = 0
+                    if i == num_conexoes - 1:
+                        peso = peso_total - sum(pesos)
+                    else:
+                        peso = random.randint(peso_medio//75, peso_medio + (peso_medio//25))
+                    pesos.append(peso)
+                
+                for conexao, peso in zip(conexoes_escolhidas, pesos):
+                    ja_escolhidas.add(tuple(sorted([nome_cidade, conexao])))
+                    adicionar_aresta(nome_cidade, conexao, peso)
+    
+    for aresta in arestas.copy():
+        a, b, p = aresta
+        for i in range(1,num_jogadores):
+            a = a.split("_")[0] + f"_{i}"
+            b = b.split("_")[0] + f"_{i}"
+            adicionar_aresta(a, b, p)
+        print(aresta)
+    
+        # Liga as últimas camadas (meios) entre os jogadores
+    ultima_camadas = [regioes_jogadores[j][-1] for j in range(num_jogadores)]
 
-    def add_aresta(a, b, p):
-        key = (a, b)
-        if key not in arestas_set:
-            arestas.append((a, b, p))
-            arestas_set.add(key)
+    for i in range(num_jogadores):
+        for j in range(i + 1, num_jogadores):
+            camada_i = ultima_camadas[i]
+            camada_j = ultima_camadas[j]
 
-    for j in range(jogadores):
-        for nome in regiao_jogadores[j][0]:
-            add_aresta(f'base_j{j}', nome, random.randint(1, 5))
+            # Define quantas conexões criar entre essas duas camadas
+            num_ligacoes = min(2, len(camada_i), len(camada_j))  # exemplo: 2 conexões por par
 
-    for j in range(jogadores):
-        regioes = regiao_jogadores[j]
-        for i in range(len(regioes) - 1):
-            atual = regioes[i]
-            prox = regioes[i + 1]
-            for a in atual:
-                p = random.randrange(10,20)
-                b = random.choice(prox)
-                add_aresta(a, b, p)
-            for b in prox:
-                p = random.randrange(10,20)
-                a = random.choice(atual)
-                add_aresta(a, b, p)
+            # Escolhe pares de cidades para conectar
+            pares = random.sample(
+                [(c1, c2) for c1 in camada_i for c2 in camada_j],
+                num_ligacoes
+            )
 
-    # meio (ligação entre últimas camadas esquerda e direita)
-    for j in range(jogadores):
-        camada_j = regiao_jogadores[j][-1]
-        for jo in range(j + 1, jogadores):
-            camada_jo = regiao_jogadores[jo][-1]
-            # Adaptar conectar_camadas_limite_total para usar add_aresta
-            ja_conectados = set()
-            # Garante pelo menos uma conexão
-            a = random.choice(camada_j)
-            b = random.choice(camada_jo)
-            p = random.randrange(10,20)
-            add_aresta(a, b, p)
-            ja_conectados.add((a, b))
-            total = 1
-            while total < max_meio:
-                p = random.randrange(10,20)
-                a = random.choice(camada_j)
-                b = random.choice(camada_jo)
-                if (a, b) not in ja_conectados:
-                    add_aresta(a, b, p)
-                    ja_conectados.add((a, b))
-                    total += 1
+            for c1, c2 in pares:
+                # Peso baseado nas populações médias das cidades conectadas
+                peso = max(grafo_cidades[c1]["pop"],grafo_cidades[c2]["pop"])
+                adicionar_aresta(c1, c2, peso)
 
-    return cidades, arestas, arestas_para_lista_adjacencia_nao_direcionado(arestas)
+
+    return grafo_cidades, arestas, arestas_para_lista_adjacencia_nao_direcionado(arestas)
