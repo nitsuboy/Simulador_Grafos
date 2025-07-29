@@ -574,25 +574,35 @@ class Jogo:
             if not transporte.caminho_atual:
                 if transporte.estado == 'indo_coletar':
                     cidade_origem = self.mapa.cidades[transporte.localizacao]
+                    
+                    # Lógica para lidar com "MAX"
                     quantidade_a_coletar = 0
                     if transporte.quantidade_solicitada == 'MAX':
                         quantidade_a_coletar = cidade_origem.populacao
                     else:
                         quantidade_a_coletar = transporte.quantidade_solicitada
-
+                    
                     quantidade_coletada = min(cidade_origem.populacao, quantidade_a_coletar)
-
                     transporte.carga_populacao += quantidade_coletada
                     cidade_origem.populacao -= quantidade_coletada
                     print(f"Transporte coletou {quantidade_coletada} de população em {cidade_origem.id}.")
                     
-                    destino_final = transporte.fila_de_comandos[0]['destino']
-                    caminho = self.mapa.encontrar_caminho_bfs(transporte.localizacao, destino_final)
-                    if caminho and len(caminho) > 1:
-                        transporte.caminho_atual = caminho[1:]
-                        transporte.estado = 'transportando'
+                    # Se a coleta foi bem-sucedida, consome o comando de COLETAR
+                    transporte.fila_de_comandos.pop(0) # Consome o comando de COLETAR
+                    
+                    if transporte.fila_de_comandos: # Verifica se há um próximo comando
+                        comando_entrega = transporte.fila_de_comandos[0]
+                        # Pega o destino do comando de ENTREGAR (que agora é o primeiro)
+                        destino_final = comando_entrega['alvo']
+                        
+                        caminho = self.mapa.encontrar_caminho_bfs(transporte.localizacao, destino_final)
+                        if caminho and len(caminho) > 1:
+                            transporte.caminho_atual = caminho[1:]
+                            transporte.estado = 'transportando'
+                        else:
+                            self._iniciar_retorno_transporte(transporte, "não encontrou caminho para o destino")
                     else:
-                        self._iniciar_retorno_transporte(transporte, "não encontrou caminho para o destino")
+                        self._iniciar_retorno_transporte(transporte, "missão de coleta concluída")
 
                 elif transporte.estado == 'transportando':
                     cidade_destino = self.mapa.cidades[transporte.localizacao]
@@ -605,7 +615,7 @@ class Jogo:
                         cidade_destino.populacao += transporte.carga_populacao
                     
                     transporte.carga_populacao = 0
-                    transporte.fila_de_comandos.pop(0)
+                    transporte.fila_de_comandos.pop(0) # Consome o comando de ENTREGAR
                     transporte.estado = 'ocioso'
                 
                 elif transporte.estado == 'retornando':
@@ -613,7 +623,6 @@ class Jogo:
                     print(f"Transporte de {jogador.id} retornou à base.")
 
         elif transporte.estado == 'ocioso' and transporte.fila_de_comandos:
-            # Validação: uma missão de transporte válida tem 2 partes (coletar e entregar)
             if len(transporte.fila_de_comandos) >= 2:
                 comando_coleta = transporte.fila_de_comandos[0]
                 comando_entrega = transporte.fila_de_comandos[1]
@@ -629,18 +638,18 @@ class Jogo:
                     transporte.estado = 'indo_coletar'
                 else:
                     print(f"AVISO: Transporte não encontrou caminho para a coleta em {origem_coleta}.")
-                    transporte.fila_de_comandos.clear() # Descarta a missão impossível
+                    transporte.fila_de_comandos.clear()
 
-    def _iniciar_retorno_transporte(self, transporte, motivo):
-        """Função auxiliar para forçar o retorno do transporte à base."""
-        print(f"Transporte de {transporte.dono.id} iniciando retorno à base. Motivo: {motivo}")
-        transporte.fila_de_comandos.clear()
-        caminho_de_volta = self.mapa.encontrar_caminho_bfs(transporte.localizacao, transporte.dono.id_base)
-        if caminho_de_volta and len(caminho_de_volta) > 1:
-            transporte.caminho_atual = caminho_de_volta[1:]
-            transporte.estado = 'retornando'
-        else:
-            transporte.estado = 'ocioso' # Se já estiver na base ou não houver caminho disponível
+        def _iniciar_retorno_transporte(self, transporte, motivo):
+            """Função auxiliar para forçar o retorno do transporte à base."""
+            print(f"Transporte de {transporte.dono.id} iniciando retorno à base. Motivo: {motivo}")
+            transporte.fila_de_comandos.clear()
+            caminho_de_volta = self.mapa.encontrar_caminho_bfs(transporte.localizacao, transporte.dono.id_base)
+            if caminho_de_volta and len(caminho_de_volta) > 1:
+                transporte.caminho_atual = caminho_de_volta[1:]
+                transporte.estado = 'retornando'
+            else:
+                transporte.estado = 'ocioso' # Se já estiver na base ou não houver caminho disponível
 
     def _verificar_e_processar_fim_de_jogo(self):
         """
