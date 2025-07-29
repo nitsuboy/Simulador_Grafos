@@ -118,29 +118,53 @@ class Jogo:
             for aresta_data in dados_mapa.get('arestas', []):
                 self.mapa.adicionar_aresta(aresta_data['de'], aresta_data['para'], aresta_data['peso'])
 
-    def gerar_estado_json(self, nome_arquivo):
-        """Salva o estado dinâmico do jogo (sem dados de layout)."""
+    def gerar_estado_json(self, nome_arquivo, salvar_arquivo=True):
+        """
+        Cria o dicionário com o estado dinâmico do jogo e, opcionalmente, o salva em um arquivo.
+        Retorna o dicionário de estado.
+        """
         estado_atual = {
             "turno_atual": self.turno_atual,
+            "mapa": {
+                # O mapa estático pode ser omitido se o bot já o tiver,
+                # mas incluí-lo facilita a vida do bot e do visualizer.
+                "cidades": [],
+                "arestas": []
+            },
             "jogadores": [],
-            "cidades": [],
             "tropas_em_campo": [],
-            "transportes": []
+            "transportes": [] # Incluindo para consistência
         }
 
-        # Serializa o estado dinâmico das cidades (dono, pop atual)
+        # Serializa o mapa estático (com posições, se existirem)        
         for cidade in self.mapa.cidades.values():
-            estado_atual["cidades"].append({
+            estado_atual["mapa"]["cidades"].append({
                 "id": cidade.id,
-                "dono": cidade.dono,
-                "populacao": cidade.populacao
+                "populacao": cidade.populacao,
+                # Se o atributo 'pos' não existir, o visualizador precisará do mapa base
+                "pos": getattr(cidade, 'pos', [0, 0])
+            })
+        for aresta in self.mapa.arestas.values():
+            estado_atual["mapa"]["arestas"].append({
+                "de": aresta.cidades[0],
+                "para": aresta.cidades[1],
+                "peso": aresta.peso
             })
         
-        # Serializa jogadores e tropas
+        # Serializa o estado dinâmico (jogadores, tropas, donos das cidades)
+        cidades_possuidas_por_jogador = {}
+        for jogador_id in self.jogadores:
+            cidades_possuidas_por_jogador[jogador_id] = []
+
+        for cidade in self.mapa.cidades.values():
+            if cidade.dono in cidades_possuidas_por_jogador:
+                cidades_possuidas_por_jogador[cidade.dono].append(cidade.id)
+                
         for jogador in self.jogadores.values():
             estado_atual["jogadores"].append({
                 "id": jogador.id,
-                "tropas_na_base": jogador.tropas_na_base
+                "tropas_na_base": jogador.tropas_na_base,
+                "cidades_possuidas": cidades_possuidas_por_jogador.get(jogador.id, [])
             })
             for tropa in jogador.tropas:
                 estado_atual["tropas_em_campo"].append({
@@ -149,12 +173,22 @@ class Jogo:
                     "forca": tropa.forca,
                     "localizacao": tropa.localizacao
                 })
+            
+            # Adiciona o estado do transporte
+            transporte = jogador.transporte
+            estado_atual["transportes"].append({
+                "dono": jogador.id,
+                "localizacao": transporte.localizacao,
+                "carga_populacao": transporte.carga_populacao,
+                "estado": transporte.estado
+            })
 
-        with open(nome_arquivo, 'w', encoding='utf-8') as f:
-            json.dump(estado_atual, f, indent=2)
-        print(f"Arquivo de estado '{nome_arquivo}' gerado com sucesso.")
+        if salvar_arquivo:
+            with open(nome_arquivo, 'w', encoding='utf-8') as f:
+                json.dump(estado_atual, f, indent=2)
+            print(f"Arquivo de estado '{nome_arquivo}' gerado com sucesso.")
 
-    # Dentro da classe Jogo, em engine.py
+        return estado_atual
 
     def verificar_vencedor(self, anunciar_fim=False):
         """
@@ -232,46 +266,52 @@ class Jogo:
 
     def _calcular_mst_prim(self, jogador):
         """
-        Calcula a Árvore Geradora Mínima (MST) para as cidades de um jogador usando o Algoritmo de Prim.
-        Retorna o custo total da manutenção e o conjunto de cidades conectadas.
+        Calcula a Árvore Geradora Mínima (MST) que conecta as cidades de um jogador,
+        usando o Algoritmo de Prim. Retorna o custo total da manutenção e o 
+        conjunto de cidades que estão efetivamente conectadas à base.
         """
         cidades_do_jogador = {c.id for c in self.mapa.cidades.values() if c.dono == jogador.id}
-        if not cidades_do_jogador:
-            return 0, set()
+
+        # A base é sempre o ponto de partida
+        cidades_do_jogador.add(jogador.id_base)
+
+        # Se o jogador só tem a base, o custo é zero por padrão
+        if len(cidades_do_jogador) <= 1:
+            return 0, cidades_do_jogador
 
         custo_total = 0
-        cidades_conectadas = {jogador.id_base}
+        cidades_conectadas = set()
+        fronteira = []  # Define uma fila de prioridade por peso, origem e destino
         
-        # Fila de prioridade para guardar as arestas como (custo, cidade1, cidade2)
-        fronteira = []
-
-        # Começa a busca a partir da base
-        no_atual = jogador.id_base
+        # Começa o algoritmo a partir da base do jogador
+        no_inicial = jogador.id_base
         
-        while True:
-            # Adiciona todas as arestas do nó atual à fronteira
-            for vizinho_id in self.mapa.get_vizinhos(no_atual):
-                aresta = self.mapa.get_aresta(no_atual, vizinho_id)
+        # Adiciona o nó inicial ao nosso conjunto de cidades já conectadas
+        cidades_conectadas.add(no_inicial)
+        
+        # Adiciona as arestas do nó inicial à fronteira, apenas se levarem a outra cidade do jogador
+        for vizinho_id in self.mapa.get_vizinhos(no_inicial):
+            if vizinho_id in cidades_do_jogador:
+                aresta = self.mapa.get_aresta(no_inicial, vizinho_id)
                 if aresta:
-                    # Adiciona à fila com o peso como prioridade
-                    heapq.heappush(fronteira, (aresta.peso, no_atual, vizinho_id))
+                    heapq.heappush(fronteira, (aresta.peso, no_inicial, vizinho_id))
 
-            # Encontra a próxima aresta mais barata que conecta a uma cidade nova
-            aresta_mais_barata = None
-            while fronteira:
-                peso, de, para = heapq.heappop(fronteira)
-                if para not in cidades_conectadas:
-                    aresta_mais_barata = (peso, de, para)
-                    break
-            
-            if aresta_mais_barata:
-                peso, de, para = aresta_mais_barata
-                custo_total += peso
+        # Loop principal do Algoritmo de Prim
+        while fronteira and len(cidades_conectadas) < len(cidades_do_jogador):
+            peso, de, para = heapq.heappop(fronteira)
+
+            if para not in cidades_conectadas:
+                # Encontramos uma nova cidade do jogador para adicionar à rede
                 cidades_conectadas.add(para)
-                no_atual = para
-            else:
-                # Se não há mais arestas para conectar novas cidades, paramos
-                break
+                custo_total += peso
+                
+                # Adiciona as novas arestas do nó recém-conectado à fronteira
+                for proximo_vizinho_id in self.mapa.get_vizinhos(para):
+                    # Aresta só é válida se conectar a outra cidade do jogador que ainda não está na rede
+                    if proximo_vizinho_id in cidades_do_jogador and proximo_vizinho_id not in cidades_conectadas:
+                        proxima_aresta = self.mapa.get_aresta(para, proximo_vizinho_id)
+                        if proxima_aresta:
+                            heapq.heappush(fronteira, (proxima_aresta.peso, para, proximo_vizinho_id))
         
         return custo_total, cidades_conectadas
 
