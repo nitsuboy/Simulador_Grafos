@@ -3,9 +3,7 @@ import random
 import sys
 import math
 
-# Constantes
-LARGURA = 800
-ALTURA = 800
+
 RAIO = 25
 MAX_Y = 250
 
@@ -29,6 +27,8 @@ def gerar_grafo(
     seed: int = None,
     num_jogadores: int = 2,
     ilha_central: bool = False,
+    largura: int = 800,
+    altura: int = 800,
     max_meio: int = 2
 ):
     # Tratamento de argumentos
@@ -60,8 +60,9 @@ def gerar_grafo(
     # Inicializa as bases dos jogadores
     for jogador in range(num_jogadores):
         grafo_cidades[f"basej_{jogador}"] = {
-            "pos": rotate((LARGURA // 2, ALTURA // 2), (RAIO, ALTURA // 2), (6.283185 / num_jogadores) * jogador),
-            "pop": 100
+            "pos": rotate((largura // 2, altura // 2), (RAIO, altura // 2), (6.283185 / num_jogadores) * jogador),
+            "pop": 100,
+            "owner": jogador
         }
 
     # Balanceia as camadas para que a soma das populações seja igual e tenha ao menos uma conquistavel
@@ -69,8 +70,8 @@ def gerar_grafo(
         camada_atual = []
         num_cidades = camadas[camada_idx]
 
-        x_pos = RAIO + (camada_idx + 1) * ((LARGURA // 2) // (len(camadas) + 1))
-        y_step = (ALTURA - 2 * MAX_Y) // (num_cidades + 1)
+        x_pos = RAIO + (camada_idx + 1) * ((largura // 2) // (len(camadas) + 1))
+        y_step = (altura - 2 * MAX_Y) // (num_cidades + 1)
 
         soma_populacao = (tropas_disponiveis * num_cidades) + camada_idx * 120
         conquista_minima = int(tropas_disponiveis * random.uniform(0.7, 0.9))
@@ -97,7 +98,8 @@ def gerar_grafo(
             y_pos = MAX_Y + (cidade_idx + 1) * y_step
             cidades_base[nome_cidade] = {
                 "pos": [x_pos, y_pos],
-                "pop": populacoes[cidade_idx]
+                "pop": populacoes[cidade_idx],
+                "owner": None
             }
             camada_atual.append(nome_cidade)
             contador_nomes += 1
@@ -113,7 +115,7 @@ def gerar_grafo(
                 pos_x, pos_y = cidades_base[nome_cidade]["pos"]
                 nome_espelhado = f"{nome_cidade}_{jogador}"
                 grafo_cidades[nome_espelhado] = {
-                    "pos": rotate((LARGURA // 2, ALTURA // 2), (pos_x, pos_y), (6.283185 / num_jogadores) * jogador),
+                    "pos": rotate((largura // 2, altura // 2), (pos_x, pos_y), (6.283185 / num_jogadores) * jogador),
                     "pop": cidades_base[nome_cidade]["pop"]
                 }
                 camada_espelhada.append(nome_espelhado)
