@@ -217,12 +217,16 @@ class Jogo:
             motivo = "Fim de jogo por tempo! "
             
             contagem_cidades = {j.id: 0 for j in jogadores_ativos}
-            for cidade in self.mapa.cidades.values():
-                if cidade.dono in contagem_cidades:
+            for cidade in self.mapa.cidades.values():                
+                # Só conta a cidade se ela tiver um dono E se o ID dela NÃO contiver "base"
+                if cidade.dono in contagem_cidades and "base" not in cidade.id:
                     contagem_cidades[cidade.dono] += 1
-            
-            if not contagem_cidades or max(contagem_cidades.values()) == 0:
-                motivo += "EMPATE! Ninguém possuía cidades."
+
+            # Soma total de cidades para verificar empate            
+            soma_total_de_cidades = sum(contagem_cidades.values())
+
+            if soma_total_de_cidades == 0:
+                motivo += "EMPATE! Ninguém possuía cidades (além das bases)."
             else:
                 max_cidades = max(contagem_cidades.values())
                 possiveis_vencedores = [j_id for j_id, count in contagem_cidades.items() if count == max_cidades]
