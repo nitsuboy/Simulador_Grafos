@@ -1,0 +1,51 @@
+{
+  "turno_atual": 3,
+  "mapa": {
+    "cidades": [
+      {"id": "base_j0", "populacao": 100, "pos": [100, 400]},
+      {"id": "c1_0", "populacao": 77, "pos": [200, 300]},
+      {"id": "c2_0", "populacao": 72, "pos": [200, 500]},
+      {"id": "base_j1", "populacao": 100, "pos": [700, 400]},
+      {"id": "c1_1", "populacao": 65, "pos": [600, 300]},
+      {"id": "c2_1", "populacao": 80, "pos": [600, 500]},
+      {"id": "c_meio", "populacao": 50, "pos": [400, 400]}
+    ],
+    "arestas": [
+      {"de": "base_j0", "para": "c1_0", "peso": 80},
+      {"de": "base_j0", "para": "c2_0", "peso": 80},
+      {"de": "c1_0", "para": "c_meio", "peso": 60},
+      {"de": "c2_0", "para": "c_meio", "peso": 60},
+      {"de": "base_j1", "para": "c1_1", "peso": 70},
+      {"de": "base_j1", "para": "c2_1", "peso": 90},
+      {"de": "c1_1", "para": "c_meio", "peso": 60},
+      {"de": "c2_1", "para": "c_meio", "peso": 60}
+    ]
+  },
+  "jogadores": [
+    {
+      "id": "j0",
+      "tropas_na_base": 150,
+      "cidades_possuidas": ["base_j0", "c1_0"]
+    },
+    {
+      "id": "j1",
+      "tropas_na_base": 120,
+      "cidades_possuidas": ["base_j1", "c1_1"]
+    }
+  ],
+  "tropas_em_campo": [
+    {
+      "id": "tropa_j0_1",
+      "dono": "j0",
+      "forca": 50,
+      "localizacao": "c1_0"
+    },
+    {
+      "id": "tropa_j1_1",
+      "dono": "j1",
+      "forca": 75,
+      "localizacao": "c1_1"
+    }
+  ],
+  "transportes": []
+}
