@@ -84,10 +84,10 @@ class Simulador:
 
 if __name__ == "__main__":
     # Parâmetros do jogo
-    mapa_path = "mapa.json"
+    mapa_path = "./src/mapa.json"
     jogadores_info = [
-        {'id': 'j0', 'base_id': 'base_j0'},
-        {'id': 'j1', 'base_id': 'base_j1'}
+        {'id': 'j0', 'base_id': 'basej_0'},
+        {'id': 'j1', 'base_id': 'basej_1'}
     ]
 
     # Cria e roda o simulador

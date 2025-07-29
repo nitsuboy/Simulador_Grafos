@@ -1,162 +1,657 @@
 {
+  "seed": 12345,
   "cidades": [
     {
-      "id": "base_j0",
+      "id": "basej_0",
       "populacao": 100
     },
     {
-      "id": "base_j1",
+      "id": "basej_1",
       "populacao": 100
     },
     {
       "id": "c1_0",
-      "populacao": 76
+      "populacao": 114
     },
     {
       "id": "c2_0",
-      "populacao": 30
+      "populacao": 99
     },
     {
       "id": "c3_0",
-      "populacao": 49
+      "populacao": 103
     },
     {
       "id": "c4_0",
-      "populacao": 42
+      "populacao": 85
     },
     {
       "id": "c5_0",
-      "populacao": 47
+      "populacao": 545
     },
     {
       "id": "c6_0",
-      "populacao": 66
+      "populacao": 359
+    },
+    {
+      "id": "c7_0",
+      "populacao": 1036
+    },
+    {
+      "id": "c8_0",
+      "populacao": 1157
+    },
+    {
+      "id": "c9_0",
+      "populacao": 778
     },
     {
       "id": "c1_1",
-      "populacao": 76
+      "populacao": 114
     },
     {
       "id": "c2_1",
-      "populacao": 30
+      "populacao": 99
     },
     {
       "id": "c3_1",
-      "populacao": 49
+      "populacao": 103
     },
     {
       "id": "c4_1",
-      "populacao": 42
+      "populacao": 85
     },
     {
       "id": "c5_1",
-      "populacao": 47
+      "populacao": 545
     },
     {
       "id": "c6_1",
-      "populacao": 66
+      "populacao": 359
+    },
+    {
+      "id": "c7_1",
+      "populacao": 1036
+    },
+    {
+      "id": "c8_1",
+      "populacao": 1157
+    },
+    {
+      "id": "c9_1",
+      "populacao": 778
     }
   ],
   "arestas": [
     {
-      "de": "base_j0",
-      "para": "c1_0",
-      "peso": 76
-    },
-    {
-      "de": "base_j0",
-      "para": "c2_0",
-      "peso": 30
-    },
-    {
-      "de": "base_j0",
-      "para": "c3_0",
-      "peso": 49
-    },
-    {
-      "de": "base_j1",
-      "para": "c1_1",
-      "peso": 76
-    },
-    {
-      "de": "base_j1",
-      "para": "c2_1",
-      "peso": 30
-    },
-    {
-      "de": "base_j1",
-      "para": "c3_1",
-      "peso": 49
+      "de": "c1_0",
+      "para": "basej_0",
+      "peso": 13
     },
     {
       "de": "c1_0",
-      "para": "c5_0",
-      "peso": 47
+      "para": "c2_0",
+      "peso": 4
+    },
+    {
+      "de": "c1_0",
+      "para": "c4_0",
+      "peso": 97
     },
     {
       "de": "c2_0",
-      "para": "c4_0",
-      "peso": 42
+      "para": "basej_0",
+      "peso": 99
     },
     {
       "de": "c3_0",
-      "para": "c5_0",
-      "peso": 47
+      "para": "basej_0",
+      "peso": 21
     },
     {
-      "de": "c1_0",
+      "de": "c3_0",
       "para": "c4_0",
-      "peso": 42
+      "peso": 82
     },
     {
-      "de": "c2_0",
-      "para": "c5_0",
-      "peso": 47
-    },
-    {
-      "de": "c2_0",
-      "para": "c6_0",
-      "peso": 66
-    },
-    {
-      "de": "c1_1",
-      "para": "c6_1",
-      "peso": 66
-    },
-    {
-      "de": "c2_1",
-      "para": "c6_1",
-      "peso": 66
-    },
-    {
-      "de": "c3_1",
-      "para": "c4_1",
-      "peso": 42
-    },
-    {
-      "de": "c3_1",
-      "para": "c4_1",
-      "peso": 42
-    },
-    {
-      "de": "c3_1",
-      "para": "c5_1",
-      "peso": 47
-    },
-    {
-      "de": "c1_1",
-      "para": "c6_1",
-      "peso": 66
+      "de": "c4_0",
+      "para": "basej_0",
+      "peso": 85
     },
     {
       "de": "c5_0",
-      "para": "c6_1",
-      "peso": 66
+      "para": "c1_0",
+      "peso": 545
     },
     {
       "de": "c6_0",
+      "para": "c2_0",
+      "peso": 27
+    },
+    {
+      "de": "c6_0",
+      "para": "c3_0",
+      "peso": 332
+    },
+    {
+      "de": "c7_0",
+      "para": "c5_0",
+      "peso": 122
+    },
+    {
+      "de": "c7_0",
+      "para": "c9_0",
+      "peso": 171
+    },
+    {
+      "de": "c7_0",
+      "para": "c6_0",
+      "peso": 23
+    },
+    {
+      "de": "c7_0",
+      "para": "c8_0",
+      "peso": 720
+    },
+    {
+      "de": "c8_0",
+      "para": "c5_0",
+      "peso": 1157
+    },
+    {
+      "de": "c9_0",
+      "para": "c5_0",
+      "peso": 136
+    },
+    {
+      "de": "c9_0",
+      "para": "c6_0",
+      "peso": 642
+    },
+    {
+      "de": "c1_1",
+      "para": "basej_1",
+      "peso": 13
+    },
+    {
+      "de": "c1_1",
+      "para": "c2_1",
+      "peso": 4
+    },
+    {
+      "de": "c1_1",
       "para": "c4_1",
-      "peso": 42
+      "peso": 97
+    },
+    {
+      "de": "c2_1",
+      "para": "basej_1",
+      "peso": 99
+    },
+    {
+      "de": "c3_1",
+      "para": "basej_1",
+      "peso": 21
+    },
+    {
+      "de": "c3_1",
+      "para": "c4_1",
+      "peso": 82
+    },
+    {
+      "de": "c4_1",
+      "para": "basej_1",
+      "peso": 85
+    },
+    {
+      "de": "c5_1",
+      "para": "c1_1",
+      "peso": 545
+    },
+    {
+      "de": "c6_1",
+      "para": "c2_1",
+      "peso": 27
+    },
+    {
+      "de": "c6_1",
+      "para": "c3_1",
+      "peso": 332
+    },
+    {
+      "de": "c7_1",
+      "para": "c5_1",
+      "peso": 122
+    },
+    {
+      "de": "c7_1",
+      "para": "c9_1",
+      "peso": 171
+    },
+    {
+      "de": "c7_1",
+      "para": "c6_1",
+      "peso": 23
+    },
+    {
+      "de": "c7_1",
+      "para": "c8_1",
+      "peso": 720
+    },
+    {
+      "de": "c8_1",
+      "para": "c5_1",
+      "peso": 1157
+    },
+    {
+      "de": "c9_1",
+      "para": "c5_1",
+      "peso": 136
+    },
+    {
+      "de": "c9_1",
+      "para": "c6_1",
+      "peso": 642
+    },
+    {
+      "de": "c9_0",
+      "para": "c7_1",
+      "peso": 1036
+    },
+    {
+      "de": "c7_0",
+      "para": "c9_1",
+      "peso": 1036
+    }
+  ],
+  "lista_adjacencia": [
+    {
+      "cidade": "c1_0",
+      "vizinhos": [
+        {
+          "id": "basej_0",
+          "peso": 13
+        },
+        {
+          "id": "c2_0",
+          "peso": 4
+        },
+        {
+          "id": "c4_0",
+          "peso": 97
+        },
+        {
+          "id": "c5_0",
+          "peso": 545
+        }
+      ]
+    },
+    {
+      "cidade": "basej_0",
+      "vizinhos": [
+        {
+          "id": "c1_0",
+          "peso": 13
+        },
+        {
+          "id": "c2_0",
+          "peso": 99
+        },
+        {
+          "id": "c3_0",
+          "peso": 21
+        },
+        {
+          "id": "c4_0",
+          "peso": 85
+        }
+      ]
+    },
+    {
+      "cidade": "c2_0",
+      "vizinhos": [
+        {
+          "id": "c1_0",
+          "peso": 4
+        },
+        {
+          "id": "basej_0",
+          "peso": 99
+        },
+        {
+          "id": "c6_0",
+          "peso": 27
+        }
+      ]
+    },
+    {
+      "cidade": "c4_0",
+      "vizinhos": [
+        {
+          "id": "c1_0",
+          "peso": 97
+        },
+        {
+          "id": "c3_0",
+          "peso": 82
+        },
+        {
+          "id": "basej_0",
+          "peso": 85
+        }
+      ]
+    },
+    {
+      "cidade": "c3_0",
+      "vizinhos": [
+        {
+          "id": "basej_0",
+          "peso": 21
+        },
+        {
+          "id": "c4_0",
+          "peso": 82
+        },
+        {
+          "id": "c6_0",
+          "peso": 332
+        }
+      ]
+    },
+    {
+      "cidade": "c5_0",
+      "vizinhos": [
+        {
+          "id": "c1_0",
+          "peso": 545
+        },
+        {
+          "id": "c7_0",
+          "peso": 122
+        },
+        {
+          "id": "c8_0",
+          "peso": 1157
+        },
+        {
+          "id": "c9_0",
+          "peso": 136
+        }
+      ]
+    },
+    {
+      "cidade": "c6_0",
+      "vizinhos": [
+        {
+          "id": "c2_0",
+          "peso": 27
+        },
+        {
+          "id": "c3_0",
+          "peso": 332
+        },
+        {
+          "id": "c7_0",
+          "peso": 23
+        },
+        {
+          "id": "c9_0",
+          "peso": 642
+        }
+      ]
+    },
+    {
+      "cidade": "c7_0",
+      "vizinhos": [
+        {
+          "id": "c5_0",
+          "peso": 122
+        },
+        {
+          "id": "c9_0",
+          "peso": 171
+        },
+        {
+          "id": "c6_0",
+          "peso": 23
+        },
+        {
+          "id": "c8_0",
+          "peso": 720
+        },
+        {
+          "id": "c9_1",
+          "peso": 1036
+        }
+      ]
+    },
+    {
+      "cidade": "c9_0",
+      "vizinhos": [
+        {
+          "id": "c7_0",
+          "peso": 171
+        },
+        {
+          "id": "c5_0",
+          "peso": 136
+        },
+        {
+          "id": "c6_0",
+          "peso": 642
+        },
+        {
+          "id": "c7_1",
+          "peso": 1036
+        }
+      ]
+    },
+    {
+      "cidade": "c8_0",
+      "vizinhos": [
+        {
+          "id": "c7_0",
+          "peso": 720
+        },
+        {
+          "id": "c5_0",
+          "peso": 1157
+        }
+      ]
+    },
+    {
+      "cidade": "c1_1",
+      "vizinhos": [
+        {
+          "id": "basej_1",
+          "peso": 13
+        },
+        {
+          "id": "c2_1",
+          "peso": 4
+        },
+        {
+          "id": "c4_1",
+          "peso": 97
+        },
+        {
+          "id": "c5_1",
+          "peso": 545
+        }
+      ]
+    },
+    {
+      "cidade": "basej_1",
+      "vizinhos": [
+        {
+          "id": "c1_1",
+          "peso": 13
+        },
+        {
+          "id": "c2_1",
+          "peso": 99
+        },
+        {
+          "id": "c3_1",
+          "peso": 21
+        },
+        {
+          "id": "c4_1",
+          "peso": 85
+        }
+      ]
+    },
+    {
+      "cidade": "c2_1",
+      "vizinhos": [
+        {
+          "id": "c1_1",
+          "peso": 4
+        },
+        {
+          "id": "basej_1",
+          "peso": 99
+        },
+        {
+          "id": "c6_1",
+          "peso": 27
+        }
+      ]
+    },
+    {
+      "cidade": "c4_1",
+      "vizinhos": [
+        {
+          "id": "c1_1",
+          "peso": 97
+        },
+        {
+          "id": "c3_1",
+          "peso": 82
+        },
+        {
+          "id": "basej_1",
+          "peso": 85
+        }
+      ]
+    },
+    {
+      "cidade": "c3_1",
+      "vizinhos": [
+        {
+          "id": "basej_1",
+          "peso": 21
+        },
+        {
+          "id": "c4_1",
+          "peso": 82
+        },
+        {
+          "id": "c6_1",
+          "peso": 332
+        }
+      ]
+    },
+    {
+      "cidade": "c5_1",
+      "vizinhos": [
+        {
+          "id": "c1_1",
+          "peso": 545
+        },
+        {
+          "id": "c7_1",
+          "peso": 122
+        },
+        {
+          "id": "c8_1",
+          "peso": 1157
+        },
+        {
+          "id": "c9_1",
+          "peso": 136
+        }
+      ]
+    },
+    {
+      "cidade": "c6_1",
+      "vizinhos": [
+        {
+          "id": "c2_1",
+          "peso": 27
+        },
+        {
+          "id": "c3_1",
+          "peso": 332
+        },
+        {
+          "id": "c7_1",
+          "peso": 23
+        },
+        {
+          "id": "c9_1",
+          "peso": 642
+        }
+      ]
+    },
+    {
+      "cidade": "c7_1",
+      "vizinhos": [
+        {
+          "id": "c5_1",
+          "peso": 122
+        },
+        {
+          "id": "c9_1",
+          "peso": 171
+        },
+        {
+          "id": "c6_1",
+          "peso": 23
+        },
+        {
+          "id": "c8_1",
+          "peso": 720
+        },
+        {
+          "id": "c9_0",
+          "peso": 1036
+        }
+      ]
+    },
+    {
+      "cidade": "c9_1",
+      "vizinhos": [
+        {
+          "id": "c7_1",
+          "peso": 171
+        },
+        {
+          "id": "c5_1",
+          "peso": 136
+        },
+        {
+          "id": "c6_1",
+          "peso": 642
+        },
+        {
+          "id": "c7_0",
+          "peso": 1036
+        }
+      ]
+    },
+    {
+      "cidade": "c8_1",
+      "vizinhos": [
+        {
+          "id": "c7_1",
+          "peso": 720
+        },
+        {
+          "id": "c5_1",
+          "peso": 1157
+        }
+      ]
     }
   ]
 }
