@@ -161,6 +161,91 @@ class Jogo:
             tropa.estado = 'encurralada'
             print(f"ALERTA: Tropa {tropa.id} está encurralada em {tropa.localizacao} e não pode recuar!")
 
+    def _calcular_mst_prim(self, jogador):
+        """
+        Calcula a Árvore Geradora Mínima (MST) para as cidades de um jogador usando o Algoritmo de Prim.
+        Retorna o custo total da manutenção e o conjunto de cidades conectadas.
+        """
+        cidades_do_jogador = {c.id for c in self.mapa.cidades.values() if c.dono == jogador.id}
+        if not cidades_do_jogador:
+            return 0, set()
+
+        custo_total = 0
+        cidades_conectadas = {jogador.id_base}
+        
+        # Fila de prioridade para guardar as arestas como (custo, cidade1, cidade2)
+        fronteira = []
+
+        # Começa a busca a partir da base
+        no_atual = jogador.id_base
+        
+        while True:
+            # Adiciona todas as arestas do nó atual à fronteira
+            for vizinho_id in self.mapa.get_vizinhos(no_atual):
+                aresta = self.mapa.get_aresta(no_atual, vizinho_id)
+                if aresta:
+                    # Adiciona à fila com o peso como prioridade
+                    heapq.heappush(fronteira, (aresta.peso, no_atual, vizinho_id))
+
+            # Encontra a próxima aresta mais barata que conecta a uma cidade nova
+            aresta_mais_barata = None
+            while fronteira:
+                peso, de, para = heapq.heappop(fronteira)
+                if para not in cidades_conectadas:
+                    aresta_mais_barata = (peso, de, para)
+                    break
+            
+            if aresta_mais_barata:
+                peso, de, para = aresta_mais_barata
+                custo_total += peso
+                cidades_conectadas.add(para)
+                no_atual = para
+            else:
+                # Se não há mais arestas para conectar novas cidades, paramos
+                break
+        
+        return custo_total, cidades_conectadas
+
+    def _executar_fase_de_custo_e_suprimento(self):
+        """
+        Verifica a conectividade do império de cada jogador e calcula os custos.
+        """
+        print("\n--- Fase de Custo e Suprimento ---")
+        for jogador in self.jogadores.values():
+            if jogador.id in self.jogadores_derrotados:
+                continue
+
+            # Calcula a MST e verifica a conectividade
+            custo_total_manutencao, cidades_conectadas = self._calcular_mst_prim(jogador)
+            
+            cidades_possuidas_antes = {c.id for c in self.mapa.cidades.values() if c.dono == jogador.id}
+
+            # Identifica e neutraliza cidades isoladas
+            cidades_isoladas = cidades_possuidas_antes - cidades_conectadas
+            for cidade_id in cidades_isoladas:
+                cidade = self.mapa.cidades[cidade_id]
+                print(f"ALERTA: Cidade {cidade.id} do jogador {jogador.id} ficou isolada e se tornou neutra!")
+                cidade.dono = None
+                # Tropas estacionadas são dadas como perdidas
+                for tropa in cidade.tropas_estacionadas:
+                    jogador.tropas.remove(tropa) # Remove da lista geral de tropas para não contar mais
+                cidade.tropas_estacionadas.clear()
+
+            # Calcula o custo final e o debita da base
+            custo_do_turno = custo_total_manutencao / 100
+            print(f"Jogador {jogador.id}: Custo de manutenção do império = {custo_do_turno:.2f}")
+            jogador.tropas_na_base -= custo_do_turno
+
+            # Verifica a condição de derrota por falência
+            if jogador.tropas_na_base <= 0:
+                print(f"DERROTA: Jogador {jogador.id} foi à falência (tropas na base <= 0)!")
+                self.jogadores_derrotados.append(jogador.id)
+                # Neutraliza todas as cidades do jogador derrotado
+                for cidade_id in cidades_conectadas: # Apenas as que ainda eram dele
+                     self.mapa.cidades[cidade_id].dono = None
+                # Remove todas as tropas do jogador
+                jogador.tropas.clear()
+
     def processar_turno(self):
         print(f"\n--- Processando Turno {self.turno_atual} ---")
         
@@ -229,6 +314,9 @@ class Jogo:
                         print(f"Tropa {tropa.id} iniciando recuo voluntário de {tropa.localizacao}.")
                         # A lógica é a mesma do recuo forçado, mas sem o motivo de penalidade
                         self._iniciar_recuo_forcado(tropa, "ordem de recuo do jogador")
+        
+        # Etapa 2: Cálculo de custos e suprimentos
+        self._executar_fase_de_custo_e_suprimento()
         
         self.gerar_estado_json(f"estado_turno_{self.turno_atual}.json")
         self.turno_atual += 1
