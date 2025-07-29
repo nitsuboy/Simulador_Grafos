@@ -6,11 +6,12 @@ Bem-vindo ao Simulador de Conquista e Estratégia! Este é um jogo de guerra por
 
 ## 2. Condições de Vitória e Derrota
 
-- **Vitória:** Capturar a Base de um oponente.
+- **Vitória:** Ocorre quando:
+  - Capturar a Base de um oponente.
+  - Jogador com mais bases conquistadas ao fim do máximo de turnos
 - **Derrota:** Ocorre quando:
   - Sua Base é capturada.
   - O número de tropas na sua Base chega a zero (Base = HP do jogador).
-  - A falência econômica leva à derrota imediata.
 
 ## 3. A Estrutura do Turno
 
@@ -72,20 +73,30 @@ Cada IA recebe:
 
 ```
 Novas Tropas:
-Tropa p1 3: base -> c1 -> c3 -> ataca c5 -> permanece
-Tropa p1 4: base -> c2 -> ataca c7
+# Formato: <id_da_tropa> <forca_desejada>: <rota>
+j0_1 120: base_j0 -> c1_0 -> ataca c_meio
+j0_2 50: base_j0 -> c2_0
 
 Transporte:
-caminho: base -> c3 -> c8
+# Formato: rota: <passo> -> <acao_com_cidade> -> <acao_final_com_cidade>
+rota: base_j0 -> coletar 50 em c1_0 -> entregar em base_j0
+rota: base_j0 -> coletar MAX em c2_0 -> entregar em c1_0
+rota: c1_0 -> entregar em c3_0 # Uma ordem simples de entrega da carga atual
 ```
 
-Como será lida uma única ordem de tropa pelo motor:
-
+## Como será interpretado pelo Parser
 ```
+# Dicionário de uma tropa
 tropa.fila_de_comandos = [
     {'tipo': 'MOVER', 'alvo': 'c1'},
     {'tipo': 'MOVER', 'alvo': 'c3'},
     {'tipo': 'ATACAR', 'alvo': 'c5'},
     {'tipo': 'PERMANECER'} 
+]
+
+# Dicionário do transporte
+transporte.fila_de_comandos = [
+    {'tipo': 'COLETAR', 'alvo': 'c3', 'quantidade': 50},
+    {'tipo': 'ENTREGAR', 'alvo': 'c8'}
 ]
 ```

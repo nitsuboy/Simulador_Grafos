@@ -33,6 +33,7 @@ class Transporte:
         self.fila_de_comandos = []
         # Estados: 'ocioso', 'indo_coletar', 'transportando', 'retornando', 'destruido'
         self.estado = 'ocioso'
+        self.quantidade_solicitada = 0 # Para saber quanto coletar
         self.caminho_atual = []
         self.timer_respawn = 0 # Para quando for destruído (nasce novamente na base após 1 turno)
 
@@ -153,25 +154,79 @@ class Jogo:
             json.dump(estado_atual, f, indent=2)
         print(f"Arquivo de estado '{nome_arquivo}' gerado com sucesso.")
 
+    # Dentro da classe Jogo, em engine.py
+
+    def verificar_vencedor(self, anunciar_fim=False):
+        """
+        Verifica as condições de fim de jogo.
+        Retorna o ID do vencedor se houver um, "EMPATE" se for o caso, ou None se o jogo continua.
+        """
+        jogadores_ativos = [j for j in self.jogadores.values() if j.id not in self.jogadores_derrotados]
+        num_jogadores_ativos = len(jogadores_ativos)
+        
+        vencedor_final = None
+        motivo = ""
+        jogo_terminou = False
+
+        if num_jogadores_ativos <= 1:
+            jogo_terminou = True
+            if num_jogadores_ativos == 1:
+                vencedor_final = jogadores_ativos[0]
+                motivo = f"Vitória por eliminação! Jogador {vencedor_final.id} foi o último restante."
+            else:
+                motivo = "EMPATE! Todos os jogadores foram eliminados."
+                
+        elif self.turno_atual >= self.turno_maximo:
+            jogo_terminou = True
+            motivo = "Fim de jogo por tempo! "
+            
+            contagem_cidades = {j.id: 0 for j in jogadores_ativos}
+            for cidade in self.mapa.cidades.values():
+                if cidade.dono in contagem_cidades:
+                    contagem_cidades[cidade.dono] += 1
+            
+            if not contagem_cidades or max(contagem_cidades.values()) == 0:
+                motivo += "EMPATE! Ninguém possuía cidades."
+            else:
+                max_cidades = max(contagem_cidades.values())
+                possiveis_vencedores = [j_id for j_id, count in contagem_cidades.items() if count == max_cidades]
+                
+                if len(possiveis_vencedores) == 1:
+                    vencedor_id = possiveis_vencedores[0]
+                    vencedor_final = self.jogadores[vencedor_id]
+                    motivo += f"Vitória por pontos! Jogador {vencedor_final.id} venceu com {max_cidades} cidades."
+                else:
+                    motivo += f"EMPATE! Os jogadores {possiveis_vencedores} terminaram com {max_cidades} cidades."
+
+        if jogo_terminou and anunciar_fim:
+            print(motivo)
+
+        if vencedor_final:
+            return vencedor_final.id
+        elif jogo_terminou:
+            return "EMPATE"
+        else:
+            return None
+
     def _iniciar_recuo_forcado(self, tropa, motivo):
         """
         Interrompe a ação atual de uma tropa e a força a recuar para a base.
         """
-        print(f"RECIO FORÇADO para Tropa {tropa.id}! Motivo: {motivo}")
+        print(f"RECUO FORÇADO para Tropa {tropa.id}! Motivo: {motivo}")
 
-        # 1. Limpa todos os planos antigos da tropa
+        # Limpa todos os planos antigos da tropa
         tropa.fila_de_comandos.clear()
         tropa.caminho_atual.clear()
         
-        # 2. Calcula o novo caminho de volta para a base
+        # Calcula o novo caminho de volta para a base
         caminho_de_volta = self.mapa.encontrar_caminho_bfs(tropa.localizacao, tropa.dono.id_base)
 
         if caminho_de_volta:
-            # 3. Se houver um caminho, define a nova rota de recuo
+            # Se houver um caminho, define a nova rota de recuo
             tropa.caminho_atual = caminho_de_volta[1:] # Exclui a cidade atual do caminho
             tropa.estado = 'recuando'
         else:
-            # 4. Se não houver caminho (tropa está isolada), ela fica encurralada
+            # Se não houver caminho (tropa está isolada), ela fica encurralada
             tropa.estado = 'encurralada'
             print(f"ALERTA: Tropa {tropa.id} está encurralada em {tropa.localizacao} e não pode recuar!")
 
@@ -476,9 +531,9 @@ class Jogo:
             if not transporte.caminho_atual:
                 if transporte.estado == 'indo_coletar':
                     cidade_origem = self.mapa.cidades[transporte.localizacao]
-                    quantidade_coletada = cidade_origem.populacao
+                    quantidade_coletada = min(cidade_origem.populacao, transporte.quantidade_solicitada)
                     transporte.carga_populacao += quantidade_coletada
-                    cidade_origem.populacao = 0
+                    cidade_origem.populacao -= quantidade_coletada
                     print(f"Transporte coletou {quantidade_coletada} de população em {cidade_origem.id}.")
                     
                     destino_final = transporte.fila_de_comandos[0]['destino']
