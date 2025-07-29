@@ -4,7 +4,7 @@ from ias.ia_interface import IAInterface
 from ias.ia_perseus import Perseus # Exemplo de import de uma IA personalizada
 
 class Simulador:
-    def __init__(self, mapa_json_path, bots):
+    def __init__(self, mapa_json_path, bots, turno_maximo=50):
         """
         Inicializa o simulador.
         :param mapa_json_path: Caminho para o arquivo JSON do mapa.
@@ -13,6 +13,7 @@ class Simulador:
         """
         print("--- Inicializando o Simulador ---")
         self.jogo = Jogo()
+        self.jogo.turno_maximo = turno_maximo  # Define o número máximo de turnos
         self.jogo.carregar_mundo(mapa_json_path)
         self.ias = {} # Dicionário para armazenar as instâncias das IAs
         
@@ -89,7 +90,8 @@ class Simulador:
 
 if __name__ == "__main__":
     # Parâmetros de inicialização do simulador
-    mapa_path = "mapa.json" 
+    mapa_path = "src\\mapa.json" 
+    turno_maximo = 10  # Define o número máximo de turnos
     
     # Define as IAs competidoras
     bots = {
@@ -98,5 +100,5 @@ if __name__ == "__main__":
     }
 
     # Inicia a simulação
-    simulador = Simulador(mapa_json_path=mapa_path, bots=bots)
+    simulador = Simulador(mapa_json_path=mapa_path, bots=bots, turno_maximo=turno_maximo)
     simulador.run()

@@ -1,5 +1,5 @@
 import random
-from ia_interface import IAInterface
+from .ia_interface import IAInterface # Não esqueça do . para importar corretamente
 
 class Perseus(IAInterface):
     """
@@ -21,9 +21,12 @@ class Perseus(IAInterface):
         if not bot_info: return ""
 
         tropas_na_base = bot_info['tropas_na_base']
-        minha_base_id = f"base_{self.jogador_id}"
-        cidades_minhas = [c['id'] for c in estado_do_jogo['cidades'] if c['dono'] == self.jogador_id]
-        cidades_neutras = [c for c in estado_do_jogo['cidades'] if c['dono'] is None]
+        minha_base_id = f"base_{self.jogador_id}"                 
+        lista_de_cidades = estado_do_jogo['mapa']['cidades']
+        
+        # O resto do código agora usa a 'lista_de_cidades' que encontramos no lugar certo
+        cidades_minhas = [c['id'] for c in lista_de_cidades if c['dono'] == self.jogador_id]
+        cidades_neutras = [c for c in lista_de_cidades if c['dono'] is None]
         meu_transporte = next((t for t in estado_do_jogo['transportes'] if t['dono'] == self.jogador_id), None)
 
         # Preparação das Ordens
@@ -34,7 +37,8 @@ class Perseus(IAInterface):
         if random.random() < 0.5 and tropas_na_base >= 10 and cidades_neutras:
             self.contador_tropas += 1
             id_nova_tropa = f"{self.jogador_id}_{self.contador_tropas}"
-            forca = random.randint(10, int(tropas_na_base / 2) + 1)
+            limite_superior_forca = max(10, int(tropas_na_base / 2) + 1)
+            forca = random.randint(10, limite_superior_forca)
             alvo = random.choice(cidades_neutras)
             ordens_tropas_str += f"{id_nova_tropa} {forca}: {minha_base_id} -> ataca {alvo['id']}\n"
 

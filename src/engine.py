@@ -121,60 +121,71 @@ class Jogo:
 
     def gerar_estado_json(self, nome_arquivo, salvar_arquivo=True, diretorio="estados"):
         """
-        Cria o dicionário com o estado do jogo e, opcionalmente, o salva em um arquivo
-        dentro de um diretório específico.
+        Cria o dicionário com o estado completo do jogo e, opcionalmente, o salva.
         Retorna o dicionário de estado.
         """
+        # Estrutura principal do JSON de estado
         estado_atual = {
             "turno_atual": self.turno_atual,
-            "mapa": {
-                "cidades": [],
-                "arestas": []
-            },
+            "mapa": { "cidades": [], "arestas": [] },
             "jogadores": [],
             "tropas_em_campo": [],
             "transportes": []
         }
 
-        # Serializa as cidades e arestas do mapa
+        # Serializa a estrutura do mapa e coleta informações das cidades possuídas
+        cidades_possuidas_por_jogador = {j_id: [] for j_id in self.jogadores}
+
         for cidade in self.mapa.cidades.values():
+            # Adiciona a cidade à lista do mapa no JSON
             estado_atual["mapa"]["cidades"].append({
-                "id": cidade.id, "populacao": cidade.populacao,
-                "pos": getattr(cidade, 'pos', [0, 0])
+                "id": cidade.id,
+                "populacao": cidade.populacao,
+                "pos": getattr(cidade, 'pos', [0, 0]),
+                "dono": cidade.dono
             })
+            # Ao mesmo tempo, se a cidade tiver um dono, adiciona à lista de contagem
+            if cidade.dono is not None and cidade.dono in cidades_possuidas_por_jogador:
+                cidades_possuidas_por_jogador[cidade.dono].append(cidade.id)
+
         for aresta in self.mapa.arestas.values():
             estado_atual["mapa"]["arestas"].append({
-                "de": aresta.cidades[0], "para": aresta.cidades[1], "peso": aresta.peso
+                "de": aresta.cidades[0],
+                "para": aresta.cidades[1],
+                "peso": aresta.peso
             })
         
-        cidades_possuidas_por_jogador = {j_id: [] for j_id in self.jogadores}
-        for cidade in self.mapa.cidades.values():
-            if cidade.dono in cidades_possuidas_por_jogador:
-                cidades_possuidas_por_jogador[cidade.dono].append(cidade.id)
-            
+        # Serializa os jogadores e suas unidades
         for jogador in self.jogadores.values():
+            # Adiciona as informações do jogador
             estado_atual["jogadores"].append({
-                "id": jogador.id, "tropas_na_base": jogador.tropas_na_base,
-                "cidades_possuidas": cidades_possuidas_por_jogador.get(jogador.id, [])
-            })
-            for tropa in jogador.tropas:
-                estado_atual["tropas_em_campo"].append({
-                    "id": tropa.id, "dono": jogador.id, "forca": tropa.forca, "localizacao": tropa.localizacao
-                })
-            transporte = jogador.transporte
-            estado_atual["transportes"].append({
-                "dono": jogador.id, "localizacao": transporte.localizacao,
-                "carga_populacao": transporte.carga_populacao, "estado": transporte.estado
+                "id": jogador.id,
+                "tropas_na_base": jogador.tropas_na_base,
+                "cidades_possuidas": cidades_possuidas_por_jogador[jogador.id]
             })
 
-        # Salva o estado atual em um arquivo JSON, se solicitado
+            # Adiciona as tropas em campo daquele jogador
+            for tropa in jogador.tropas:
+                estado_atual["tropas_em_campo"].append({
+                    "id": tropa.id,
+                    "dono": jogador.id,
+                    "forca": tropa.forca,
+                    "localizacao": tropa.localizacao
+                })
+            
+            # Adiciona o estado do transporte daquele jogador
+            transporte = jogador.transporte
+            estado_atual["transportes"].append({
+                "dono": jogador.id,
+                "localizacao": transporte.localizacao,
+                "carga_populacao": transporte.carga_populacao,
+                "estado": transporte.estado
+            })
+
+        # Salva o arquivo, se solicitado
         if salvar_arquivo:
             os.makedirs(diretorio, exist_ok=True)
-            
-            # Constrói o caminho completo do arquivo
             caminho_completo = os.path.join(diretorio, nome_arquivo)
-            
-            # Salva o arquivo no caminho especificado
             with open(caminho_completo, 'w', encoding='utf-8') as f:
                 json.dump(estado_atual, f, indent=2)
             print(f"Arquivo de estado '{caminho_completo}' gerado com sucesso.")
@@ -559,7 +570,14 @@ class Jogo:
             if not transporte.caminho_atual:
                 if transporte.estado == 'indo_coletar':
                     cidade_origem = self.mapa.cidades[transporte.localizacao]
-                    quantidade_coletada = min(cidade_origem.populacao, transporte.quantidade_solicitada)
+                    quantidade_a_coletar = 0
+                    if transporte.quantidade_solicitada == 'MAX':
+                        quantidade_a_coletar = cidade_origem.populacao
+                    else:
+                        quantidade_a_coletar = transporte.quantidade_solicitada
+
+                    quantidade_coletada = min(cidade_origem.populacao, quantidade_a_coletar)
+
                     transporte.carga_populacao += quantidade_coletada
                     cidade_origem.populacao -= quantidade_coletada
                     print(f"Transporte coletou {quantidade_coletada} de população em {cidade_origem.id}.")
@@ -591,17 +609,23 @@ class Jogo:
                     print(f"Transporte de {jogador.id} retornou à base.")
 
         elif transporte.estado == 'ocioso' and transporte.fila_de_comandos:
-            comando = transporte.fila_de_comandos[0]
-            origem_coleta = comando['origem']
+            # Validação: uma missão de transporte válida tem 2 partes (coletar e entregar)
+            if len(transporte.fila_de_comandos) >= 2:
+                comando_coleta = transporte.fila_de_comandos[0]
+                comando_entrega = transporte.fila_de_comandos[1]
+                
+                origem_coleta = comando_coleta['alvo']
+                destino_final = comando_entrega['alvo']
 
-            print(f"Transporte de {jogador.id} iniciando missão: coletar em {origem_coleta} e levar para {comando['destino']}.")
-            caminho = self.mapa.encontrar_caminho_bfs(transporte.localizacao, origem_coleta)
-            if caminho and len(caminho) > 1:
-                transporte.caminho_atual = caminho[1:]
-                transporte.estado = 'indo_coletar'
-            else:
-                print(f"AVISO: Transporte não encontrou caminho para a coleta em {origem_coleta}.")
-                transporte.fila_de_comandos.pop(0)
+                print(f"Transporte de {jogador.id} iniciando missão: coletar em {origem_coleta} e levar para {destino_final}.")
+                
+                caminho = self.mapa.encontrar_caminho_bfs(transporte.localizacao, origem_coleta)
+                if caminho and len(caminho) > 1:
+                    transporte.caminho_atual = caminho[1:]
+                    transporte.estado = 'indo_coletar'
+                else:
+                    print(f"AVISO: Transporte não encontrou caminho para a coleta em {origem_coleta}.")
+                    transporte.fila_de_comandos.clear() # Descarta a missão impossível
 
     def _iniciar_retorno_transporte(self, transporte, motivo):
         """Função auxiliar para forçar o retorno do transporte à base."""
