@@ -1,9 +1,9 @@
 import json
+import heapq
 from collections import deque
 
 class Cidade:
-    """Representa uma cidade no mapa do jogo.
-    Cada cidade tem um ID, uma população, um dono (jogador) e uma lista de tropas estacionadas."""
+    """Representa uma cidade no mapa do jogo (apenas dados lógicos)."""
     def __init__(self, id, populacao):
         self.id = id
         self.populacao = populacao
@@ -11,68 +11,36 @@ class Cidade:
         self.tropas_estacionadas = []
 
 class Tropa:
-    """Representa uma tropa no jogo.
-    Cada tropa tem um ID, um dono (jogador), uma força e uma localização."""
+    """Representa uma tropa no jogo."""
     def __init__(self, id, dono, forca, fila_de_comandos=None):
         self.id = id
         self.dono = dono
         self.forca = forca
-        self.localizacao = dono.id_base 
+        self.localizacao = dono.id_base
         self.fila_de_comandos = fila_de_comandos if fila_de_comandos is not None else []
-        self.estado = 'Esperando'  # Estado da tropa: Esperando, Atacando, Movendo.
-        self.caminho_atual = [] # Rota definida para movimentação
+        # Estados possíveis: 'ociosa', 'movendo', 'atacando', 'recuando', 'encurralada'
+        self.estado = 'ociosa'
+        self.caminho_atual = []
+        self.alvo_de_ataque = None # Para guardar o alvo do comando ATACAR
 
 class Jogador:
-    """Representa um jogador no jogo.
-    Cada jogador tem um ID, uma lista de cidades sob seu controle, uma lista de tropas e um HP da base (tropas_na_base)."""
+    """Representa um jogador no jogo."""
     def __init__(self, id, id_base):
         self.id = id
         self.id_base = id_base
-        self.cidades_possuidas = [] 
         self.tropas = []
-        self.tropas_na_base = 100 # HP da base do jogador
-
-    def adicionar_cidade(self, cidade):
-        """Adiciona uma cidade ao jogador e define o dono da cidade como o ID do jogador."""
-        self.cidades.append(cidade)
-        cidade.dono = self.id
-
-    def adicionar_tropa(self, tropa):
-        """Adiciona uma tropa ao jogador e define o dono da tropa como o ID do jogador."""
-        self.tropas.append(tropa)
-        tropa.dono = self.id
-
-    def remover_tropa(self, tropa):
-        """Remove uma tropa do jogador e redefine o dono da tropa como None."""
-        if tropa in self.tropas:
-            self.tropas.remove(tropa)
-            tropa.dono = None
+        self.tropas_na_base = 100
 
 class Aresta:
-    """Representa uma aresta entre duas cidades no mapa do jogo.
-    Cada aresta tem uma cidade de origem, uma cidade de destino e um peso (capacidade de tráfego)."""
+    """Representa uma aresta lógica entre duas cidades."""
     def __init__(self, cidade1_id, cidade2_id, peso):
         self.cidades = (cidade1_id, cidade2_id)
-        self.peso = peso    
-
-class Transporte:
-    """Representa um transporte de tropas entre cidades.
-    Cada transporte tem um dono (jogador), uma localização (cidade) e uma carga de população."""
-    def __init__(self, dono):
-        self.dono = dono
-        self.localizacao = dono.id_base
-        self.carga_populacao = 0
-        self.fila_de_comandos = []
-        self.estado = 'Esperando'
-
-    def adicionar_comando(self, comando=None):
-        """Adiciona um comando à fila de comandos do transporte."""
-        self.fila_de_comandos.append(comando)
+        self.peso = peso
 
 class Mapa:
-    """Representa o mapa do jogo, contendo cidades e arestas."""
+    """Representa a estrutura lógica do mapa do jogo."""
     def __init__(self):
-        self.cidades = {} 
+        self.cidades = {}
         self.arestas = {}
 
     def adicionar_cidade(self, cidade):
@@ -80,18 +48,18 @@ class Mapa:
         self.cidades[cidade.id] = cidade
 
     def adicionar_aresta(self, cidade1_id, cidade2_id, peso):
-        """Adiciona uma aresta entre duas cidades no mapa."""
+        """Adiciona uma aresta entre duas cidades."""
         chave = tuple(sorted((cidade1_id, cidade2_id)))
         if chave not in self.arestas:
             self.arestas[chave] = Aresta(cidade1_id, cidade2_id, peso)
 
     def get_aresta(self, cidade1_id, cidade2_id):
-        """Retorna o objeto Aresta entre duas cidades."""
+        """Retorna a aresta entre duas cidades, se existir."""
         chave = tuple(sorted((cidade1_id, cidade2_id)))
         return self.arestas.get(chave)
 
     def get_vizinhos(self, cidade_id):
-        """Retorna uma lista de IDs de cidades vizinhas."""
+        """Retorna uma lista de IDs de cidades vizinhas a uma cidade específica."""
         vizinhos = []
         for cidades_na_aresta in self.arestas.keys():
             if cidade_id in cidades_na_aresta:
@@ -101,93 +69,166 @@ class Mapa:
     
     def encontrar_caminho_bfs(self, inicio_id, fim_id):
         """Encontra o caminho mais curto entre duas cidades usando BFS."""
-        if inicio_id == fim_id:
-            return [inicio_id]
-            
+        if inicio_id == fim_id: return [inicio_id]
         fila = deque([[inicio_id]])
         visitados = {inicio_id}
-
         while fila:
             caminho = fila.popleft()
             ultimo_no = caminho[-1]
-
-            if ultimo_no == fim_id:
-                return caminho
-
+            if ultimo_no == fim_id: return caminho
             for vizinho in self.get_vizinhos(ultimo_no):
                 if vizinho not in visitados:
                     visitados.add(vizinho)
                     novo_caminho = list(caminho)
                     novo_caminho.append(vizinho)
                     fila.append(novo_caminho)
-        return None # Retorna None se não houver caminho
+        return None
 
 class Jogo:
-    """Classe principal do jogo, que gerencia o estado do jogo, jogadores e o mapa."""
+    """Classe principal da engine, gerencia a lógica e o estado do jogo."""
     def __init__(self):
         self.mapa = Mapa()
-        self.jogadores = []
+        self.jogadores = {}
         self.turno_atual = 0
         self.turno_maximo = 100
+        self.jogadores_derrotados = [] # Para guardar qualquer jogador derrotado
 
     def carregar_mundo(self, mapa_json):
-        """Carrega o tabuleiro a partir de um arquivo JSON gerado."""
+        """Carrega a estrutura lógica do mundo a partir do JSON do gerador."""
         with open(mapa_json, 'r') as f:
             dados_mapa = json.load(f)
             for cidade_data in dados_mapa.get('cidades', []):
-                self.mapa.adicionar_cidade(Cidade(**cidade_data))
+                # A engine agora ignora a informação de 'pos'
+                self.mapa.adicionar_cidade(Cidade(cidade_data['id'], cidade_data['populacao']))
             for aresta_data in dados_mapa.get('arestas', []):
-                self.mapa.adicionar_aresta(Aresta(**aresta_data))
+                self.mapa.adicionar_aresta(aresta_data['de'], aresta_data['para'], aresta_data['peso'])
+
+    def gerar_estado_json(self, nome_arquivo):
+        """Salva o estado dinâmico do jogo (sem dados de layout)."""
+        estado_atual = {
+            "turno_atual": self.turno_atual,
+            "jogadores": [],
+            "cidades": [],
+            "tropas_em_campo": [],
+            "transportes": []
+        }
+
+        # Serializa o estado dinâmico das cidades (dono, pop atual)
+        for cidade in self.mapa.cidades.values():
+            estado_atual["cidades"].append({
+                "id": cidade.id,
+                "dono": cidade.dono,
+                "populacao": cidade.populacao
+            })
+        
+        # Serializa jogadores e tropas
+        for jogador in self.jogadores.values():
+            estado_atual["jogadores"].append({
+                "id": jogador.id,
+                "tropas_na_base": jogador.tropas_na_base
+            })
+            for tropa in jogador.tropas:
+                estado_atual["tropas_em_campo"].append({
+                    "id": tropa.id,
+                    "dono": jogador.id,
+                    "forca": tropa.forca,
+                    "localizacao": tropa.localizacao
+                })
+
+        with open(nome_arquivo, 'w', encoding='utf-8') as f:
+            json.dump(estado_atual, f, indent=2)
+        print(f"Arquivo de estado '{nome_arquivo}' gerado com sucesso.")
+
+    def _iniciar_recuo_forcado(self, tropa, motivo):
+        """
+        Interrompe a ação atual de uma tropa e a força a recuar para a base.
+        """
+        print(f"RECIO FORÇADO para Tropa {tropa.id}! Motivo: {motivo}")
+
+        # 1. Limpa todos os planos antigos da tropa
+        tropa.fila_de_comandos.clear()
+        tropa.caminho_atual.clear()
+        
+        # 2. Calcula o novo caminho de volta para a base
+        caminho_de_volta = self.mapa.encontrar_caminho_bfs(tropa.localizacao, tropa.dono.id_base)
+
+        if caminho_de_volta:
+            # 3. Se houver um caminho, define a nova rota de recuo
+            tropa.caminho_atual = caminho_de_volta[1:] # Exclui a cidade atual do caminho
+            tropa.estado = 'recuando'
+        else:
+            # 4. Se não houver caminho (tropa está isolada), ela fica encurralada
+            tropa.estado = 'encurralada'
+            print(f"ALERTA: Tropa {tropa.id} está encurralada em {tropa.localizacao} e não pode recuar!")
 
     def processar_turno(self):
         print(f"\n--- Processando Turno {self.turno_atual} ---")
         
-        # Etapa 1: Processamento de Movimentos
-        for jogador in self.jogadores:
-            # Iteramos em todas as tropas do jogador
-            for tropa in jogador.tropas:
-                # Se a tropa está movendo, continuamos seu caminho
-                if tropa.estado == 'movendo':
+        # Etapa 1: Processamento de Comandos e Movimentos
+        for jogador_id, jogador in self.jogadores.items():
+            # Iterar sobre uma cópia da lista é mais seguro se a lista for modificada
+            for tropa in list(jogador.tropas): 
+                
+                # Lógica de movimento para tropas que já estão em um caminho
+                if tropa.estado in ['movendo', 'recuando']:
                     if tropa.caminho_atual:
                         proximo_passo = tropa.caminho_atual.pop(0)
                         
-                        # Etapa de Validação
                         aresta = self.mapa.get_aresta(tropa.localizacao, proximo_passo)
                         cidade_destino = self.mapa.cidades[proximo_passo]
                         
-                        # 1. A rota ainda pertence ao jogador?
-                        if cidade_destino.dono != jogador.id and cidade_destino.id != jogador.base_id:
-                            print(f"Tropa {tropa.id} encontrou cidade inimiga/neutra em {proximo_passo}! Recuo forçado.")
-                            # TODO: Implementar lógica de recuo forçado (sobrescrever fila de comandos)
+                        # Validações de movimento 
+                        if tropa.estado == 'movendo' and cidade_destino.dono != jogador.id and cidade_destino.id != jogador.id_base:
+                            self._iniciar_recuo_forcado(tropa, f"encontrou cidade inimiga/neutra em {proximo_passo}")
                             continue
                         
-                        # 2. A tropa tem capacidade para passar?
-                        if tropa.forca > aresta.peso:
-                            print(f"Tropa {tropa.id} é muito grande para a aresta para {proximo_passo}! Recuo forçado.")
-                            # TODO: Implementar lógica de recuo forçado
+                        if tropa.estado == 'movendo' and tropa.forca > aresta.peso:
+                            self._iniciar_recuo_forcado(tropa, f"é muito grande para a aresta para {proximo_passo}")
                             continue
                         
                         tropa.localizacao = proximo_passo
-                        print(f"Tropa {tropa.id} moveu-se para {tropa.localizacao}")
+                        print(f"Tropa {tropa.id} ({tropa.estado}) moveu-se para {tropa.localizacao}")
                     
-                    if not tropa.caminho_atual: # Se o caminho acabou
-                        # Chegou ao destino do comando MOVER
-                        tropa.estado = 'ociosa' 
-                        print(f"Tropa {tropa.id} chegou ao destino.")
+                    if not tropa.caminho_atual:
+                        tropa.estado = 'ociosa'
+                        print(f"Tropa {tropa.id} chegou ao seu destino.")
                         
-                # Se a tropa está ociosa, pegamos um novo comando da fila
+                # Quando tropas ociosas que têm novos comandos para executar
                 elif tropa.estado == 'ociosa' and tropa.fila_de_comandos:
                     comando_atual = tropa.fila_de_comandos.pop(0)
-                    
+
                     if comando_atual['tipo'] == 'MOVER':
                         destino_final = comando_atual['alvo']
                         print(f"Tropa {tropa.id} iniciando movimento de {tropa.localizacao} para {destino_final}")
-                        
                         caminho = self.mapa.encontrar_caminho_bfs(tropa.localizacao, destino_final)
-                        if caminho:
-                            tropa.caminho_atual = caminho[1:] # Armazena o caminho, excluindo a cidade atual
+                        if caminho and len(caminho) > 1:
+                            tropa.caminho_atual = caminho[1:]
                             tropa.estado = 'movendo'
                         else:
-                            print(f"ERRO: Tropa {tropa.id} não encontrou caminho para {destino_final}")
+                            tropa.fila_de_comandos.insert(0, comando_atual) # Devolve o comando para a fila
+                            print(f"AVISO: Tropa {tropa.id} não pôde iniciar movimento para {destino_final}.")
+
+                    elif comando_atual['tipo'] == 'ATACAR':
+                        alvo_id = comando_atual['alvo']
+                        # Validação: o alvo do ataque é vizinho da localização atual da tropa?
+                        if alvo_id in self.mapa.get_vizinhos(tropa.localizacao):
+                            tropa.estado = 'atacando'
+                            tropa.alvo_de_ataque = alvo_id
+                            print(f"Tropa {tropa.id} está agora atacando {alvo_id}. Combate será resolvido no final do turno.")
+                        else:
+                            print(f"ERRO: Tropa {tropa.id} tentou atacar {alvo_id} de {tropa.localizacao}, mas não é vizinho. Ordem ignorada.")
+                    
+                    elif comando_atual['tipo'] == 'PERMANECER':
+                        tropa.estado = 'estacionada'
+                        cidade_atual = self.mapa.cidades[tropa.localizacao]
+                        cidade_atual.tropas_estacionadas.append(tropa)
+                        jogador.tropas.remove(tropa) # Move da lista de tropas ativas para a guarnição
+                        print(f"Tropa {tropa.id} agora está estacionada em {tropa.localizacao} como guarnição.")
+
+                    elif comando_atual['tipo'] == 'RECUAR':
+                        print(f"Tropa {tropa.id} iniciando recuo voluntário de {tropa.localizacao}.")
+                        # A lógica é a mesma do recuo forçado, mas sem o motivo de penalidade
+                        self._iniciar_recuo_forcado(tropa, "ordem de recuo do jogador")
         
+        self.gerar_estado_json(f"estado_turno_{self.turno_atual}.json")
         self.turno_atual += 1
