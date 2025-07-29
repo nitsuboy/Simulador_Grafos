@@ -91,7 +91,7 @@ class Simulador:
 if __name__ == "__main__":
     # Parâmetros de inicialização do simulador
     mapa_path = "src\\mapa.json" 
-    turno_maximo = 10  # Define o número máximo de turnos
+    turno_maximo = 20  # Define o número máximo de turnos
     
     # Define as IAs competidoras
     bots = {

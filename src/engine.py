@@ -344,7 +344,7 @@ class Jogo:
                 cidade.tropas_estacionadas.clear()
 
             # Calcula o custo final e o debita da base
-            custo_do_turno = custo_total_manutencao / 100
+            custo_do_turno = custo_total_manutencao // 100
             print(f"Jogador {jogador.id}: Custo de manutenção do império = {custo_do_turno:.2f}")
             jogador.tropas_na_base -= custo_do_turno
 
