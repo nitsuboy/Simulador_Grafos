@@ -375,6 +375,151 @@ class Jogo:
                         print(f"Tropa {tropa.id} venceu (raid) e iniciará o recuo.")
                         self._iniciar_recuo_forcado(tropa, "ataque 'raid' concluído")
 
+        def _processar_movimento_tropas(self, jogador):
+        """Processa os movimentos e comandos de todas as tropas de um jogador."""
+        # Iterar sobre uma cópia da lista é mais seguro
+        for tropa in list(jogador.tropas): 
+            # Lógica de movimento para tropas que já estão em um caminho
+            if tropa.estado in ['movendo', 'recuando']:
+                if tropa.caminho_atual:
+                    proximo_passo = tropa.caminho_atual.pop(0)
+                    
+                    aresta = self.mapa.get_aresta(tropa.localizacao, proximo_passo)
+                    cidade_destino = self.mapa.cidades[proximo_passo]
+                    
+                    # Validações de movimento...
+                    if tropa.estado == 'movendo' and cidade_destino.dono != jogador.id and cidade_destino.id != jogador.id_base:
+                        self._iniciar_recuo_forcado(tropa, f"encontrou cidade inimiga/neutra em {proximo_passo}")
+                        continue
+                    
+                    if tropa.estado == 'movendo' and tropa.forca > aresta.peso:
+                        self._iniciar_recuo_forcado(tropa, f"é muito grande para a aresta para {proximo_passo}")
+                        continue
+                    
+                    tropa.localizacao = proximo_passo
+                    print(f"Tropa {tropa.id} ({tropa.estado}) moveu-se para {tropa.localizacao}")
+                
+                if not tropa.caminho_atual:
+                    tropa.estado = 'ociosa'
+                    print(f"Tropa {tropa.id} chegou ao seu destino.")
+            
+            # Lógica para tropas ociosas que têm novos comandos para executar
+            elif tropa.estado == 'ociosa' and tropa.fila_de_comandos:
+                comando_atual = tropa.fila_de_comandos.pop(0)
+
+                if comando_atual['tipo'] == 'MOVER':
+                    destino_final = comando_atual['alvo']
+                    print(f"Tropa {tropa.id} iniciando movimento de {tropa.localizacao} para {destino_final}")
+                    caminho = self.mapa.encontrar_caminho_bfs(tropa.localizacao, destino_final)
+                    if caminho and len(caminho) > 1:
+                        tropa.caminho_atual = caminho[1:]
+                        tropa.estado = 'movendo'
+                    else:
+                        tropa.fila_de_comandos.insert(0, comando_atual)
+                        print(f"AVISO: Tropa {tropa.id} não pôde iniciar movimento para {destino_final}.")
+
+                elif comando_atual['tipo'] == 'ATACAR':
+                    alvo_id = comando_atual['alvo']
+                    if alvo_id in self.mapa.get_vizinhos(tropa.localizacao):
+                        tropa.estado = 'atacando'
+                        tropa.alvo_de_ataque = alvo_id
+                        print(f"Tropa {tropa.id} está agora atacando {alvo_id}.")
+                    else:
+                        print(f"ERRO: Tropa {tropa.id} tentou atacar {alvo_id} de {tropa.localizacao}, mas não é vizinho.")
+                
+                elif comando_atual['tipo'] == 'PERMANECER':
+                    tropa.estado = 'estacionada'
+                    cidade_atual = self.mapa.cidades[tropa.localizacao]
+                    cidade_atual.tropas_estacionadas.append(tropa)
+                    jogador.tropas.remove(tropa)
+                    print(f"Tropa {tropa.id} agora está estacionada em {tropa.localizacao}.")
+
+                elif comando_atual['tipo'] == 'RECUAR':
+                    print(f"Tropa {tropa.id} iniciando recuo voluntário de {tropa.localizacao}.")
+                    self._iniciar_recuo_forcado(tropa, "ordem de recuo do jogador")
+
+    def _processar_movimento_transporte(self, jogador):
+        """Processa o movimento e os comandos do transporte de um jogador."""
+        transporte = jogador.transporte
+        
+        if transporte.estado == 'destruido':
+            transporte.timer_respawn -= 1
+            if transporte.timer_respawn <= 0:
+                transporte.estado = 'ocioso'
+                transporte.localizacao = jogador.id_base
+                print(f"Transporte do jogador {jogador.id} foi reconstruído na base.")
+            return # Pula o resto da lógica para este transporte
+
+        if transporte.estado in ['indo_coletar', 'transportando', 'retornando']:
+            if transporte.caminho_atual:
+                proximo_passo = transporte.caminho_atual.pop(0)
+                
+                cidade_destino = self.mapa.cidades[proximo_passo]
+                if cidade_destino.dono != jogador.id:
+                    if cidade_destino.dono is None: # Neutra
+                        perda = transporte.carga_populacao * 0.1
+                        cidade_destino.populacao += perda
+                        transporte.carga_populacao -= perda
+                        print(f"Transporte de {jogador.id} encontrou cidade neutra! Perdeu {perda:.0f} de população.")
+                        self._iniciar_retorno_transporte(transporte, "encontrou cidade neutra")
+                    else: # Inimiga
+                        cidade_destino.populacao += transporte.carga_populacao
+                        transporte.carga_populacao = 0
+                        transporte.estado = 'destruido'
+                        transporte.timer_respawn = 2
+                        print(f"Transporte de {jogador.id} DESTRUÍDO por cidade inimiga! Carga perdida.")
+                    return # Interrompe o movimento
+
+                transporte.localizacao = proximo_passo
+                print(f"Transporte de {jogador.id} ({transporte.estado}) moveu-se para {transporte.localizacao}")
+            
+            if not transporte.caminho_atual:
+                if transporte.estado == 'indo_coletar':
+                    cidade_origem = self.mapa.cidades[transporte.localizacao]
+                    quantidade_coletada = cidade_origem.populacao
+                    transporte.carga_populacao += quantidade_coletada
+                    cidade_origem.populacao = 0
+                    print(f"Transporte coletou {quantidade_coletada} de população em {cidade_origem.id}.")
+                    
+                    destino_final = transporte.fila_de_comandos[0]['destino']
+                    caminho = self.mapa.encontrar_caminho_bfs(transporte.localizacao, destino_final)
+                    if caminho and len(caminho) > 1:
+                        transporte.caminho_atual = caminho[1:]
+                        transporte.estado = 'transportando'
+                    else:
+                        self._iniciar_retorno_transporte(transporte, "não encontrou caminho para o destino")
+
+                elif transporte.estado == 'transportando':
+                    cidade_destino = self.mapa.cidades[transporte.localizacao]
+                    print(f"Transporte entregou {transporte.carga_populacao} de população em {cidade_destino.id}.")
+                    
+                    if "base" in cidade_destino.id:
+                        jogador.tropas_na_base += transporte.carga_populacao
+                        print(f"Jogador {jogador.id} converteu população em tropas! Total na base: {jogador.tropas_na_base:.0f}")
+                    else:
+                        cidade_destino.populacao += transporte.carga_populacao
+                    
+                    transporte.carga_populacao = 0
+                    transporte.fila_de_comandos.pop(0)
+                    transporte.estado = 'ocioso'
+                
+                elif transporte.estado == 'retornando':
+                    transporte.estado = 'ocioso'
+                    print(f"Transporte de {jogador.id} retornou à base.")
+
+        elif transporte.estado == 'ocioso' and transporte.fila_de_comandos:
+            comando = transporte.fila_de_comandos[0]
+            origem_coleta = comando['origem']
+
+            print(f"Transporte de {jogador.id} iniciando missão: coletar em {origem_coleta} e levar para {comando['destino']}.")
+            caminho = self.mapa.encontrar_caminho_bfs(transporte.localizacao, origem_coleta)
+            if caminho and len(caminho) > 1:
+                transporte.caminho_atual = caminho[1:]
+                transporte.estado = 'indo_coletar'
+            else:
+                print(f"AVISO: Transporte não encontrou caminho para a coleta em {origem_coleta}.")
+                transporte.fila_de_comandos.pop(0)
+
     def _iniciar_retorno_transporte(self, transporte, motivo):
         """Função auxiliar para forçar o retorno do transporte à base."""
         print(f"Transporte de {transporte.dono.id} iniciando retorno à base. Motivo: {motivo}")
@@ -386,165 +531,19 @@ class Jogo:
         else:
             transporte.estado = 'ocioso' # Se já estiver na base ou não houver caminho disponível
 
-
     def processar_turno(self):
         print(f"\n--- Processando Turno {self.turno_atual} ---")
         
-        # Etapa 1: Processamento de Comandos e Movimentos
-        for jogador_id, jogador in self.jogadores.items():
-            # Iterar sobre uma cópia da lista é mais seguro se a lista for modificada
-            for tropa in list(jogador.tropas): 
-                
-                # Lógica de movimento para tropas que já estão em um caminho
-                if tropa.estado in ['movendo', 'recuando']:
-                    if tropa.caminho_atual:
-                        proximo_passo = tropa.caminho_atual.pop(0)
-                        
-                        aresta = self.mapa.get_aresta(tropa.localizacao, proximo_passo)
-                        cidade_destino = self.mapa.cidades[proximo_passo]
-                        
-                        # Validações de movimento 
-                        if tropa.estado == 'movendo' and cidade_destino.dono != jogador.id and cidade_destino.id != jogador.id_base:
-                            self._iniciar_recuo_forcado(tropa, f"encontrou cidade inimiga/neutra em {proximo_passo}")
-                            continue
-                        
-                        if tropa.estado == 'movendo' and tropa.forca > aresta.peso:
-                            self._iniciar_recuo_forcado(tropa, f"é muito grande para a aresta para {proximo_passo}")
-                            continue
-                        
-                        tropa.localizacao = proximo_passo
-                        print(f"Tropa {tropa.id} ({tropa.estado}) moveu-se para {tropa.localizacao}")
-                    
-                    if not tropa.caminho_atual:
-                        tropa.estado = 'ociosa'
-                        print(f"Tropa {tropa.id} chegou ao seu destino.")
-                        
-                # Quando tropas ociosas que têm novos comandos para executar
-                elif tropa.estado == 'ociosa' and tropa.fila_de_comandos:
-                    comando_atual = tropa.fila_de_comandos.pop(0)
-
-                    if comando_atual['tipo'] == 'MOVER':
-                        destino_final = comando_atual['alvo']
-                        print(f"Tropa {tropa.id} iniciando movimento de {tropa.localizacao} para {destino_final}")
-                        caminho = self.mapa.encontrar_caminho_bfs(tropa.localizacao, destino_final)
-                        if caminho and len(caminho) > 1:
-                            tropa.caminho_atual = caminho[1:]
-                            tropa.estado = 'movendo'
-                        else:
-                            tropa.fila_de_comandos.insert(0, comando_atual) # Devolve o comando para a fila
-                            print(f"AVISO: Tropa {tropa.id} não pôde iniciar movimento para {destino_final}.")
-
-                    elif comando_atual['tipo'] == 'ATACAR':
-                        alvo_id = comando_atual['alvo']
-                        # Validação: o alvo do ataque é vizinho da localização atual da tropa?
-                        if alvo_id in self.mapa.get_vizinhos(tropa.localizacao):
-                            tropa.estado = 'atacando'
-                            tropa.alvo_de_ataque = alvo_id
-                            print(f"Tropa {tropa.id} está agora atacando {alvo_id}. Combate será resolvido no final do turno.")
-                        else:
-                            print(f"ERRO: Tropa {tropa.id} tentou atacar {alvo_id} de {tropa.localizacao}, mas não é vizinho. Ordem ignorada.")
-                    
-                    elif comando_atual['tipo'] == 'PERMANECER':
-                        tropa.estado = 'estacionada'
-                        cidade_atual = self.mapa.cidades[tropa.localizacao]
-                        cidade_atual.tropas_estacionadas.append(tropa)
-                        jogador.tropas.remove(tropa) # Move da lista de tropas ativas para a guarnição
-                        print(f"Tropa {tropa.id} agora está estacionada em {tropa.localizacao} como guarnição.")
-
-                    elif comando_atual['tipo'] == 'RECUAR':
-                        print(f"Tropa {tropa.id} iniciando recuo voluntário de {tropa.localizacao}.")
-                        # A lógica é a mesma do recuo forçado, mas sem o motivo de penalidade
-                        self._iniciar_recuo_forcado(tropa, "ordem de recuo do jogador")
-        
-            # Processamento dos transportes
-            transporte = jogador.transporte
+        # Etapa 1: Processamento de comandos de tropas e transportes
+        for jogador in self.jogadores.values():
+            if jogador.id in self.jogadores_derrotados: continue
             
-            # Checa se o transporte foi destruído e precisa respawnar
-            if transporte.estado == 'destruido':
-                transporte.timer_respawn -= 1
-                if transporte.timer_respawn <= 0:
-                    transporte.estado = 'ocioso'
-                    transporte.localizacao = jogador.id_base
-                    print(f"Transporte do jogador {jogador.id} foi reconstruído na base.")
-                continue # Interrompe o processamento deste transporte se estiver destruído
+            # Processa comandos de tropas
+            self._processar_movimento_tropas(jogador)
 
-            # Processa o movimento do transporte se ele estiver em um caminho
-            if transporte.estado in ['indo_coletar', 'transportando', 'retornando']:
-                if transporte.caminho_atual:
-                    proximo_passo = transporte.caminho_atual.pop(0)
-                    
-                    # Validação da rota
-                    cidade_destino = self.mapa.cidades[proximo_passo]
-                    if cidade_destino.dono != jogador.id:# Rota hostil ou neutra, aplica penalidade
-                        if cidade_destino.dono is None: # Cidade Neutra
-                            perda = transporte.carga_populacao * 0.1
-                            cidade_destino.populacao += perda
-                            transporte.carga_populacao -= perda
-                            print(f"Transporte de {jogador.id} encontrou cidade neutra! Perdeu {perda:.0f} de população.")
-                            self._iniciar_retorno_transporte(transporte, "encontrou cidade neutra")
-                        else: # Cidade Inimiga
-                            cidade_destino.populacao += transporte.carga_populacao
-                            transporte.carga_populacao = 0
-                            transporte.estado = 'destruido'
-                            transporte.timer_respawn = 2 # Leva 1 turno para reconstruir
-                            print(f"Transporte de {jogador.id} DESTRUÍDO por cidade inimiga! Carga perdida.")
-                        continue # Interrompe o movimento normal
+            # Processa comandos de transporte
+            self._processar_movimento_transporte(jogador)
 
-                    transporte.localizacao = proximo_passo
-                    print(f"Transporte de {jogador.id} ({transporte.estado}) moveu-se para {transporte.localizacao}")
-                
-                # Chegou ao destino do passo atual
-                if not transporte.caminho_atual:
-                    if transporte.estado == 'indo_coletar':
-                        # Lógica de coleta
-                        cidade_origem = self.mapa.cidades[transporte.localizacao]
-                        quantidade_coletada = cidade_origem.populacao
-                        transporte.carga_populacao += quantidade_coletada
-                        cidade_origem.populacao = 0
-                        print(f"Transporte coletou {quantidade_coletada} de população em {cidade_origem.id}.")
-                        
-                        # Calcula rota para o destino final
-                        destino_final = transporte.fila_de_comandos[0]['destino']
-                        caminho = self.mapa.encontrar_caminho_bfs(transporte.localizacao, destino_final)
-                        if caminho and len(caminho) > 1:
-                            transporte.caminho_atual = caminho[1:]
-                            transporte.estado = 'transportando'
-                        else:
-                            self._iniciar_retorno_transporte(transporte, "não encontrou caminho para o destino")
-
-                    elif transporte.estado == 'transportando':
-                        # Lógica de entrega
-                        cidade_destino = self.mapa.cidades[transporte.localizacao]
-                        print(f"Transporte entregou {transporte.carga_populacao} de população em {cidade_destino.id}.")
-                        
-                        if "base" in cidade_destino.id: # Se o destino é a base, converte em tropas
-                            jogador.tropas_na_base += transporte.carga_populacao
-                            print(f"Jogador {jogador.id} converteu população em tropas! Total na base: {jogador.tropas_na_base:.0f}")
-                        else: # Se for outra cidade, apenas aumenta a população
-                            cidade_destino.populacao += transporte.carga_populacao
-                        
-                        transporte.carga_populacao = 0
-                        transporte.fila_de_comandos.pop(0) # Remove o comando concluído
-                        transporte.estado = 'ocioso'
-                    
-                    elif transporte.estado == 'retornando':
-                        transporte.estado = 'ocioso'
-                        print(f"Transporte de {jogador.id} retornou à base.")
-
-            # Se o transporte está ocioso, pega um novo comando
-            elif transporte.estado == 'ocioso' and transporte.fila_de_comandos:
-                comando = transporte.fila_de_comandos[0] # Apenas lê, não remove ainda
-                origem_coleta = comando['origem']
-
-                print(f"Transporte de {jogador.id} iniciando missão: coletar em {origem_coleta} e levar para {comando['destino']}.")
-                caminho = self.mapa.encontrar_caminho_bfs(transporte.localizacao, origem_coleta)
-                if caminho and len(caminho) > 1:
-                    transporte.caminho_atual = caminho[1:]
-                    transporte.estado = 'indo_coletar'
-                else:
-                    print(f"AVISO: Transporte não encontrou caminho para a coleta em {origem_coleta}.")
-                    transporte.fila_de_comandos.pop(0) # Descarta o comando impossível
-        
         # Etapa 2: Cálculo de custos e suprimentos
         self._executar_fase_de_custo_e_suprimento()
 
