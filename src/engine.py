@@ -270,49 +270,46 @@ class Jogo:
         usando o Algoritmo de Prim. Retorna o custo total da manutenção e o 
         conjunto de cidades que estão efetivamente conectadas à base.
         """
-        cidades_do_jogador = {c.id for c in self.mapa.cidades.values() if c.dono == jogador.id}
+        mapa = self.mapa
+        jogador_id = jogador.id
+        id_base = jogador.id_base
 
-        # A base é sempre o ponto de partida
-        cidades_do_jogador.add(jogador.id_base)
+        # Copia todas as cidades do jogador, incluindo a base
+        cidades_do_jogador = {c.id for c in mapa.cidades.values() if c.dono == jogador_id}
+        cidades_do_jogador.add(id_base)
 
-        # Se o jogador só tem a base, o custo é zero por padrão
         if len(cidades_do_jogador) <= 1:
             return 0, cidades_do_jogador
 
         custo_total = 0
-        cidades_conectadas = set()
-        fronteira = []  # Define uma fila de prioridade por peso, origem e destino
-        
-        # Começa o algoritmo a partir da base do jogador
-        no_inicial = jogador.id_base
-        
-        # Adiciona o nó inicial ao nosso conjunto de cidades já conectadas
-        cidades_conectadas.add(no_inicial)
-        
-        # Adiciona as arestas do nó inicial à fronteira, apenas se levarem a outra cidade do jogador
-        for vizinho_id in self.mapa.get_vizinhos(no_inicial):
+        cidades_conectadas = {id_base}
+        fronteira = []
+
+        push = heapq.heappush
+        pop = heapq.heappop
+
+        # Pré-carrega vizinhos e arestas iniciais pra evitar lookup desnecessário
+        for vizinho_id in mapa.get_vizinhos(id_base):
             if vizinho_id in cidades_do_jogador:
-                aresta = self.mapa.get_aresta(no_inicial, vizinho_id)
+                aresta = mapa.get_aresta(id_base, vizinho_id)
                 if aresta:
-                    heapq.heappush(fronteira, (aresta.peso, no_inicial, vizinho_id))
+                    push(fronteira, (aresta.peso, id_base, vizinho_id))
 
-        # Loop principal do Algoritmo de Prim
         while fronteira and len(cidades_conectadas) < len(cidades_do_jogador):
-            peso, de, para = heapq.heappop(fronteira)
+            peso, _, destino = pop(fronteira)
 
-            if para not in cidades_conectadas:
-                # Encontramos uma nova cidade do jogador para adicionar à rede
-                cidades_conectadas.add(para)
-                custo_total += peso
-                
-                # Adiciona as novas arestas do nó recém-conectado à fronteira
-                for proximo_vizinho_id in self.mapa.get_vizinhos(para):
-                    # Aresta só é válida se conectar a outra cidade do jogador que ainda não está na rede
-                    if proximo_vizinho_id in cidades_do_jogador and proximo_vizinho_id not in cidades_conectadas:
-                        proxima_aresta = self.mapa.get_aresta(para, proximo_vizinho_id)
-                        if proxima_aresta:
-                            heapq.heappush(fronteira, (proxima_aresta.peso, para, proximo_vizinho_id))
-        
+            if destino in cidades_conectadas:
+                continue
+
+            cidades_conectadas.add(destino)
+            custo_total += peso
+
+            for vizinho_id in mapa.get_vizinhos(destino):
+                if vizinho_id in cidades_do_jogador and vizinho_id not in cidades_conectadas:
+                    aresta = mapa.get_aresta(destino, vizinho_id)
+                    if aresta:
+                        push(fronteira, (aresta.peso, destino, vizinho_id))
+
         return custo_total, cidades_conectadas
 
     def _executar_fase_de_custo_e_suprimento(self):
