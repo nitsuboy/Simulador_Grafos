@@ -10,7 +10,7 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Visualizador de Grafo")
 
 try:
-    tile_image = pygame.image.load("../assets/ground.jpg")
+    tile_image = pygame.image.load("./assets/ground.jpg")
     tile_size = (200, 200)
     tile_image = pygame.transform.scale(tile_image, tile_size)
 except pygame.error as e:
