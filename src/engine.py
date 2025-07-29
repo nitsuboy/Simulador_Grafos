@@ -18,10 +18,23 @@ class Tropa:
         self.forca = forca
         self.localizacao = dono.id_base
         self.fila_de_comandos = fila_de_comandos if fila_de_comandos is not None else []
-        # Estados possíveis: 'ociosa', 'movendo', 'atacando', 'recuando', 'encurralada'
+        # Estados possíveis: 'ociosa', 'movendo', 'atacando', 'recuando', 'encurralada', 'vitoriosa'
         self.estado = 'ociosa'
         self.caminho_atual = []
         self.alvo_de_ataque = None # Para guardar o alvo do comando ATACAR
+
+class Transporte:
+    """Representa o transporte de um jogador, que serve para mover população entre cidades
+    ou converter em tropas na base."""
+    def __init__(self, dono):
+        self.dono = dono
+        self.localizacao = dono.id_base
+        self.carga_populacao = 0
+        self.fila_de_comandos = []
+        # Estados: 'ocioso', 'indo_coletar', 'transportando', 'retornando', 'destruido'
+        self.estado = 'ocioso'
+        self.caminho_atual = []
+        self.timer_respawn = 0 # Para quando for destruído (nasce novamente na base após 1 turno)
 
 class Jogador:
     """Representa um jogador no jogo."""
@@ -30,6 +43,7 @@ class Jogador:
         self.id_base = id_base
         self.tropas = []
         self.tropas_na_base = 100
+        self.transporte = Transporte(self) # Cada jogador tem um transporte associado
 
 class Aresta:
     """Representa uma aresta lógica entre duas cidades."""
@@ -246,6 +260,133 @@ class Jogo:
                 # Remove todas as tropas do jogador
                 jogador.tropas.clear()
 
+    def _resolver_combate_neutro(self, cidade, forca_total_atacante, tropa_lider):
+        """Resolve o combate contra uma cidade neutra. As regras são diferentes de um combate normal."""
+        defesa_total = cidade.populacao
+        print(f"Tentativa de conquista em {cidade.id} (Neutra): Força da Tropa({forca_total_atacante}) vs População({defesa_total})")
+
+        # Sucesso: A força do atacante deve ser maior ou igual à população.
+        if forca_total_atacante >= defesa_total:
+            print(f"Vitória! Jogador {tropa_lider.dono.id} conquistou {cidade.id}!")
+            # A cidade assume novo dono
+            cidade.dono = tropa_lider.dono.id
+
+            # Muda o estado para tratar na Etapa 4
+            tropa_lider.estado = 'vitoriosa'
+
+        # Falha: A força do atacante é insuficiente.
+        else:
+            print(f"Falha na conquista! A força da Tropa {tropa_lider.id} ({forca_total_atacante}) é insuficiente para dominar {cidade.id}.")
+            self._iniciar_recuo_forcado(tropa_lider, f"força insuficiente para conquistar a cidade neutra {cidade.id}")
+
+    
+    def _resolver_combate_jogador(self, cidade, forca_total_atacante, tropa_atacante_lider, eh_base=False):
+        """Resolve o combate contra uma cidade ocupada por outro jogador ou uma base."""
+        defensores = list(cidade.tropas_estacionadas)
+        defesa_total = sum(t.forca for t in defensores)
+        
+        # A defesa da base inclui sua população
+        if eh_base:
+            defesa_total += cidade.populacao
+
+        forca_ataque_efetiva = forca_total_atacante
+        # A penalidade de 50% só se aplica ao atacar a base
+        if eh_base:
+            forca_ataque_efetiva *= 0.5
+            print(f"Ataque à base! Força de ataque reduzida para {forca_ataque_efetiva}.")
+
+        print(f"Combate em {cidade.id}: Ataque({forca_ataque_efetiva}) vs Defesa({defesa_total})")
+
+        if forca_ataque_efetiva > defesa_total: # Vitória do atacante
+            print(f"Vitória do jogador {tropa_atacante_lider.dono.id} em {cidade.id}!")
+            # Remove todas as tropas defensoras
+            for tropa_defensora in defensores:
+                tropa_defensora.dono.tropas.remove(tropa_defensora)
+            cidade.tropas_estacionadas.clear()
+            
+            cidade.dono = tropa_atacante_lider.dono.id
+            tropa_atacante_lider.forca -= defesa_total # Atacante perde força igual à defesa
+            tropa_atacante_lider.estado = 'vitoriosa'
+
+        else: # Vitória do defensor
+            print(f"Defensores de {cidade.dono} venceram o ataque em {cidade.id}!")
+            # Remove a tropa atacante
+            tropa_atacante_lider.dono.tropas.remove(tropa_atacante_lider)
+            
+            # Defensores perdem força
+            dano_sofrido = forca_ataque_efetiva
+            for tropa_defensora in defensores:
+                if dano_sofrido <= 0: break
+                perda = min(tropa_defensora.forca, dano_sofrido)
+                tropa_defensora.forca -= perda
+                dano_sofrido -= perda
+            
+            # Remove tropas defensoras que foram destruídas
+            cidade.tropas_estacionadas[:] = [t for t in defensores if t.forca > 0]
+
+
+    def _executar_fase_de_combates(self):
+        """Coleta todos os ataques do turno e os resolve."""
+        print("\n--- Fase de Resolução de Combates ---")
+        ataques_por_cidade = {}
+
+        # 1. Coleta e agrupa todos os ataques
+        for jogador in self.jogadores.values():
+            for tropa in jogador.tropas:
+                if tropa.estado == 'atacando':
+                    alvo_id = tropa.alvo_de_ataque
+                    if alvo_id not in ataques_por_cidade:
+                        ataques_por_cidade[alvo_id] = []
+                    ataques_por_cidade[alvo_id].append(tropa)
+        
+        # 2. Resolve os combates cidade por cidade
+        for cidade_id, lista_de_atacantes in ataques_por_cidade.items():
+            cidade = self.mapa.cidades[cidade_id]
+            forca_total_atacante = sum(t.forca for t in lista_de_atacantes)
+            tropa_lider = lista_de_atacantes[0] # A primeira tropa lidera o ataque
+
+            # Destrói as outras tropas atacantes (elas se fundem na tropa líder)
+            for tropa in lista_de_atacantes[1:]:
+                tropa.dono.tropas.remove(tropa)
+
+            if cidade.dono is None:
+                self._resolver_combate_neutro(cidade, forca_total_atacante, tropa_lider)
+            elif "base" in cidade.id:
+                 self._resolver_combate_jogador(cidade, forca_total_atacante, tropa_lider, eh_base=True)
+            else:
+                self._resolver_combate_jogador(cidade, forca_total_atacante, tropa_lider)
+
+    def _executar_fase_pos_combate(self):
+        """Processa as ações das tropas vitoriosas."""
+        print("\n--- Fase de Pós-Combate ---")
+        for jogador in self.jogadores.values():
+            for tropa in list(jogador.tropas):
+                if tropa.estado == 'vitoriosa':
+                    proximo_comando = tropa.fila_de_comandos[0] if tropa.fila_de_comandos else None
+                    
+                    if proximo_comando and proximo_comando['tipo'] == 'PERMANECER':
+                        tropa.fila_de_comandos.pop(0) # Consome o comando
+                        tropa.estado = 'estacionada'
+                        cidade_conquistada = self.mapa.cidades[tropa.localizacao]
+                        cidade_conquistada.tropas_estacionadas.append(tropa)
+                        print(f"Tropa {tropa.id} venceu e permaneceu em {tropa.localizacao}.")
+                    else:
+                        # Se não houver comando ou não for PERMANECER, a tropa recua (raid)
+                        print(f"Tropa {tropa.id} venceu (raid) e iniciará o recuo.")
+                        self._iniciar_recuo_forcado(tropa, "ataque 'raid' concluído")
+
+    def _iniciar_retorno_transporte(self, transporte, motivo):
+        """Função auxiliar para forçar o retorno do transporte à base."""
+        print(f"Transporte de {transporte.dono.id} iniciando retorno à base. Motivo: {motivo}")
+        transporte.fila_de_comandos.clear()
+        caminho_de_volta = self.mapa.encontrar_caminho_bfs(transporte.localizacao, transporte.dono.id_base)
+        if caminho_de_volta and len(caminho_de_volta) > 1:
+            transporte.caminho_atual = caminho_de_volta[1:]
+            transporte.estado = 'retornando'
+        else:
+            transporte.estado = 'ocioso' # Se já estiver na base ou não houver caminho disponível
+
+
     def processar_turno(self):
         print(f"\n--- Processando Turno {self.turno_atual} ---")
         
@@ -315,8 +456,114 @@ class Jogo:
                         # A lógica é a mesma do recuo forçado, mas sem o motivo de penalidade
                         self._iniciar_recuo_forcado(tropa, "ordem de recuo do jogador")
         
+            # Processamento dos transportes
+            transporte = jogador.transporte
+            
+            # Checa se o transporte foi destruído e precisa respawnar
+            if transporte.estado == 'destruido':
+                transporte.timer_respawn -= 1
+                if transporte.timer_respawn <= 0:
+                    transporte.estado = 'ocioso'
+                    transporte.localizacao = jogador.id_base
+                    print(f"Transporte do jogador {jogador.id} foi reconstruído na base.")
+                continue # Interrompe o processamento deste transporte se estiver destruído
+
+            # Processa o movimento do transporte se ele estiver em um caminho
+            if transporte.estado in ['indo_coletar', 'transportando', 'retornando']:
+                if transporte.caminho_atual:
+                    proximo_passo = transporte.caminho_atual.pop(0)
+                    
+                    # Validação da rota
+                    cidade_destino = self.mapa.cidades[proximo_passo]
+                    if cidade_destino.dono != jogador.id:# Rota hostil ou neutra, aplica penalidade
+                        if cidade_destino.dono is None: # Cidade Neutra
+                            perda = transporte.carga_populacao * 0.1
+                            cidade_destino.populacao += perda
+                            transporte.carga_populacao -= perda
+                            print(f"Transporte de {jogador.id} encontrou cidade neutra! Perdeu {perda:.0f} de população.")
+                            self._iniciar_retorno_transporte(transporte, "encontrou cidade neutra")
+                        else: # Cidade Inimiga
+                            cidade_destino.populacao += transporte.carga_populacao
+                            transporte.carga_populacao = 0
+                            transporte.estado = 'destruido'
+                            transporte.timer_respawn = 2 # Leva 1 turno para reconstruir
+                            print(f"Transporte de {jogador.id} DESTRUÍDO por cidade inimiga! Carga perdida.")
+                        continue # Interrompe o movimento normal
+
+                    transporte.localizacao = proximo_passo
+                    print(f"Transporte de {jogador.id} ({transporte.estado}) moveu-se para {transporte.localizacao}")
+                
+                # Chegou ao destino do passo atual
+                if not transporte.caminho_atual:
+                    if transporte.estado == 'indo_coletar':
+                        # Lógica de coleta
+                        cidade_origem = self.mapa.cidades[transporte.localizacao]
+                        quantidade_coletada = cidade_origem.populacao
+                        transporte.carga_populacao += quantidade_coletada
+                        cidade_origem.populacao = 0
+                        print(f"Transporte coletou {quantidade_coletada} de população em {cidade_origem.id}.")
+                        
+                        # Calcula rota para o destino final
+                        destino_final = transporte.fila_de_comandos[0]['destino']
+                        caminho = self.mapa.encontrar_caminho_bfs(transporte.localizacao, destino_final)
+                        if caminho and len(caminho) > 1:
+                            transporte.caminho_atual = caminho[1:]
+                            transporte.estado = 'transportando'
+                        else:
+                            self._iniciar_retorno_transporte(transporte, "não encontrou caminho para o destino")
+
+                    elif transporte.estado == 'transportando':
+                        # Lógica de entrega
+                        cidade_destino = self.mapa.cidades[transporte.localizacao]
+                        print(f"Transporte entregou {transporte.carga_populacao} de população em {cidade_destino.id}.")
+                        
+                        if "base" in cidade_destino.id: # Se o destino é a base, converte em tropas
+                            jogador.tropas_na_base += transporte.carga_populacao
+                            print(f"Jogador {jogador.id} converteu população em tropas! Total na base: {jogador.tropas_na_base:.0f}")
+                        else: # Se for outra cidade, apenas aumenta a população
+                            cidade_destino.populacao += transporte.carga_populacao
+                        
+                        transporte.carga_populacao = 0
+                        transporte.fila_de_comandos.pop(0) # Remove o comando concluído
+                        transporte.estado = 'ocioso'
+                    
+                    elif transporte.estado == 'retornando':
+                        transporte.estado = 'ocioso'
+                        print(f"Transporte de {jogador.id} retornou à base.")
+
+            # Se o transporte está ocioso, pega um novo comando
+            elif transporte.estado == 'ocioso' and transporte.fila_de_comandos:
+                comando = transporte.fila_de_comandos[0] # Apenas lê, não remove ainda
+                origem_coleta = comando['origem']
+
+                print(f"Transporte de {jogador.id} iniciando missão: coletar em {origem_coleta} e levar para {comando['destino']}.")
+                caminho = self.mapa.encontrar_caminho_bfs(transporte.localizacao, origem_coleta)
+                if caminho and len(caminho) > 1:
+                    transporte.caminho_atual = caminho[1:]
+                    transporte.estado = 'indo_coletar'
+                else:
+                    print(f"AVISO: Transporte não encontrou caminho para a coleta em {origem_coleta}.")
+                    transporte.fila_de_comandos.pop(0) # Descarta o comando impossível
+        
         # Etapa 2: Cálculo de custos e suprimentos
         self._executar_fase_de_custo_e_suprimento()
+
+        # Etapa 3: Resolução de combates
+        if not self.jogadores_derrotados:  # Só executa se ainda houver jogadores ativos
+            self._executar_fase_de_combates()
+
+        # Etapa 4: Atualizações pós-combate
+        if not self.jogadores_derrotados:  # Só executa se ainda houver jogadores ativos
+            self._executar_fase_pos_combate()
         
+        # Etapa 5: Verifica se o jogo terminou
+        if self.turno_atual >= self.turno_maximo or len(self.jogadores) <= len(self.jogadores_derrotados):
+            print("Fim do jogo! Jogadores restantes:")
+            for jogador in self.jogadores.values():
+                if jogador.id not in self.jogadores_derrotados:
+                    print(f"Jogador {jogador.id} com {len(jogador.tropas)} tropas.")
+            return
+
+        # Se ainda houver jogadores ativos, incrementa o turno e salva o estado atual
         self.gerar_estado_json(f"estado_turno_{self.turno_atual}.json")
         self.turno_atual += 1
