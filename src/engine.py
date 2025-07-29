@@ -1,3 +1,4 @@
+import os
 import json
 import heapq
 from collections import deque
@@ -118,78 +119,68 @@ class Jogo:
             for aresta_data in dados_mapa.get('arestas', []):
                 self.mapa.adicionar_aresta(aresta_data['de'], aresta_data['para'], aresta_data['peso'])
 
-    def gerar_estado_json(self, nome_arquivo, salvar_arquivo=True):
+    def gerar_estado_json(self, nome_arquivo, salvar_arquivo=True, diretorio="estados"):
         """
-        Cria o dicionário com o estado dinâmico do jogo e, opcionalmente, o salva em um arquivo.
+        Cria o dicionário com o estado do jogo e, opcionalmente, o salva em um arquivo
+        dentro de um diretório específico.
         Retorna o dicionário de estado.
         """
         estado_atual = {
             "turno_atual": self.turno_atual,
             "mapa": {
-                # O mapa estático pode ser omitido se o bot já o tiver,
-                # mas incluí-lo facilita a vida do bot e do visualizer.
                 "cidades": [],
                 "arestas": []
             },
             "jogadores": [],
             "tropas_em_campo": [],
-            "transportes": [] # Incluindo para consistência
+            "transportes": []
         }
 
-        # Serializa o mapa estático (com posições, se existirem)        
+        # Serializa as cidades e arestas do mapa
         for cidade in self.mapa.cidades.values():
             estado_atual["mapa"]["cidades"].append({
-                "id": cidade.id,
-                "populacao": cidade.populacao,
-                # Se o atributo 'pos' não existir, o visualizador precisará do mapa base
+                "id": cidade.id, "populacao": cidade.populacao,
                 "pos": getattr(cidade, 'pos', [0, 0])
             })
         for aresta in self.mapa.arestas.values():
             estado_atual["mapa"]["arestas"].append({
-                "de": aresta.cidades[0],
-                "para": aresta.cidades[1],
-                "peso": aresta.peso
+                "de": aresta.cidades[0], "para": aresta.cidades[1], "peso": aresta.peso
             })
         
-        # Serializa o estado dinâmico (jogadores, tropas, donos das cidades)
-        cidades_possuidas_por_jogador = {}
-        for jogador_id in self.jogadores:
-            cidades_possuidas_por_jogador[jogador_id] = []
-
+        cidades_possuidas_por_jogador = {j_id: [] for j_id in self.jogadores}
         for cidade in self.mapa.cidades.values():
             if cidade.dono in cidades_possuidas_por_jogador:
                 cidades_possuidas_por_jogador[cidade.dono].append(cidade.id)
-                
+            
         for jogador in self.jogadores.values():
             estado_atual["jogadores"].append({
-                "id": jogador.id,
-                "tropas_na_base": jogador.tropas_na_base,
+                "id": jogador.id, "tropas_na_base": jogador.tropas_na_base,
                 "cidades_possuidas": cidades_possuidas_por_jogador.get(jogador.id, [])
             })
             for tropa in jogador.tropas:
                 estado_atual["tropas_em_campo"].append({
-                    "id": tropa.id,
-                    "dono": jogador.id,
-                    "forca": tropa.forca,
-                    "localizacao": tropa.localizacao
+                    "id": tropa.id, "dono": jogador.id, "forca": tropa.forca, "localizacao": tropa.localizacao
                 })
-            
-            # Adiciona o estado do transporte
             transporte = jogador.transporte
             estado_atual["transportes"].append({
-                "dono": jogador.id,
-                "localizacao": transporte.localizacao,
-                "carga_populacao": transporte.carga_populacao,
-                "estado": transporte.estado
+                "dono": jogador.id, "localizacao": transporte.localizacao,
+                "carga_populacao": transporte.carga_populacao, "estado": transporte.estado
             })
 
+        # Salva o estado atual em um arquivo JSON, se solicitado
         if salvar_arquivo:
-            with open(nome_arquivo, 'w', encoding='utf-8') as f:
+            os.makedirs(diretorio, exist_ok=True)
+            
+            # Constrói o caminho completo do arquivo
+            caminho_completo = os.path.join(diretorio, nome_arquivo)
+            
+            # Salva o arquivo no caminho especificado
+            with open(caminho_completo, 'w', encoding='utf-8') as f:
                 json.dump(estado_atual, f, indent=2)
-            print(f"Arquivo de estado '{nome_arquivo}' gerado com sucesso.")
+            print(f"Arquivo de estado '{caminho_completo}' gerado com sucesso.")
 
         return estado_atual
-
+    
     def verificar_vencedor(self, anunciar_fim=False):
         """
         Verifica as condições de fim de jogo.

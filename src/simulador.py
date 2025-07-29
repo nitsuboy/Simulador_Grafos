@@ -1,7 +1,7 @@
 from engine import Jogo, Jogador, Tropa, Transporte 
 import parser 
-from ia_interface import IAInterface
-# from ia_bot_aleatorio import IADummy # Exemplo de import de IA
+from ias.ia_interface import IAInterface
+from ias.ia_perseus import Perseus # Exemplo de import de uma IA personalizada
 
 class Simulador:
     def __init__(self, mapa_json_path, bots):
@@ -93,8 +93,8 @@ if __name__ == "__main__":
     
     # Define as IAs competidoras
     bots = {
-        'j0': IADummy,
-        'j1': IADummy
+        'j0': Perseus,
+        'j1': Perseus
     }
 
     # Inicia a simulação
