@@ -375,7 +375,7 @@ class Jogo:
                         print(f"Tropa {tropa.id} venceu (raid) e iniciará o recuo.")
                         self._iniciar_recuo_forcado(tropa, "ataque 'raid' concluído")
 
-        def _processar_movimento_tropas(self, jogador):
+    def _processar_movimento_tropas(self, jogador):
         """Processa os movimentos e comandos de todas as tropas de um jogador."""
         # Iterar sobre uma cópia da lista é mais seguro
         for tropa in list(jogador.tropas): 
@@ -531,6 +531,60 @@ class Jogo:
         else:
             transporte.estado = 'ocioso' # Se já estiver na base ou não houver caminho disponível
 
+    def _verificar_e_processar_fim_de_jogo(self):
+        """
+        Verifica se as condições de fim de jogo foram atingidas.
+        Se sim, determina o vencedor ou o empate e retorna True.
+        Se não, retorna False.
+        """
+        jogadores_ativos = [j for j in self.jogadores.values() if j.id not in self.jogadores_derrotados]
+        num_jogadores_ativos = len(jogadores_ativos)
+        
+        jogo_terminou = False
+        motivo_fim_de_jogo = ""
+
+        # Condição 1: Fim por tempo ou eliminação
+        if self.turno_atual >= self.turno_maximo or num_jogadores_ativos <= 1:
+            jogo_terminou = True
+            
+            # Sub-condição 1.1: Vitória por ser o último jogador restante
+            if num_jogadores_ativos == 1:
+                vencedor = jogadores_ativos[0]
+                motivo_fim_de_jogo = f"Vitória por eliminação! Jogador {vencedor.id} foi o último restante."
+            
+            # Sub-condição 1.2: Fim por tempo, ativa o desempate por cidades
+            elif self.turno_atual >= self.turno_maximo:
+                motivo_fim_de_jogo = "Fim de jogo por tempo! "
+                
+                contagem_cidades = {j.id: 0 for j in jogadores_ativos}
+                for cidade in self.mapa.cidades.values():
+                    if cidade.dono in contagem_cidades:
+                        contagem_cidades[cidade.dono] += 1
+                
+                if not contagem_cidades or max(contagem_cidades.values()) == 0:
+                    motivo_fim_de_jogo += "EMPATE! Ninguém possuía cidades."
+                else:
+                    max_cidades = max(contagem_cidades.values())
+                    possiveis_vencedores = [j_id for j_id, count in contagem_cidades.items() if count == max_cidades]
+                    
+                    if len(possiveis_vencedores) == 1:
+                        vencedor_id = possiveis_vencedores[0]
+                        motivo_fim_de_jogo += f"Vitória por pontos! Jogador {vencedor_id} venceu com {max_cidades} cidades."
+                    else:
+                        motivo_fim_de_jogo += f"EMPATE! Os jogadores {possiveis_vencedores} terminaram com {max_cidades} cidades."
+            
+            # Sub-condição 1.3: Empate por eliminação mútua
+            else:
+                motivo_fim_de_jogo = "EMPATE! Todos os jogadores foram eliminados."
+
+        if jogo_terminou:
+            print(motivo_fim_de_jogo)
+            self.gerar_estado_json(f"estado_final_turno_{self.turno_atual}.json")
+            return True # Sinaliza para o loop principal que o jogo acabou
+
+        return False # O jogo continua
+
+
     def processar_turno(self):
         print(f"\n--- Processando Turno {self.turno_atual} ---")
         
@@ -556,12 +610,8 @@ class Jogo:
             self._executar_fase_pos_combate()
         
         # Etapa 5: Verifica se o jogo terminou
-        if self.turno_atual >= self.turno_maximo or len(self.jogadores) <= len(self.jogadores_derrotados):
-            print("Fim do jogo! Jogadores restantes:")
-            for jogador in self.jogadores.values():
-                if jogador.id not in self.jogadores_derrotados:
-                    print(f"Jogador {jogador.id} com {len(jogador.tropas)} tropas.")
-            return
+        if self._verificar_e_processar_fim_de_jogo():
+                    return
 
         # Se ainda houver jogadores ativos, incrementa o turno e salva o estado atual
         self.gerar_estado_json(f"estado_turno_{self.turno_atual}.json")
