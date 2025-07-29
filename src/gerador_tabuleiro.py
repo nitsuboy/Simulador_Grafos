@@ -32,7 +32,7 @@ def gerar_grafo(
     max_meio: int = 2
 ):
     # Tratamento de argumentos
-    if not seed:
+    if seed is None:
         seed = random.randrange(sys.maxsize)
     random.seed(seed)
     print(seed)
@@ -89,7 +89,7 @@ def gerar_grafo(
                 populacoes[i % cidades_restantes] += 1
             populacoes.append(conquista_minima)
 
-        populacoes = [int(pop * random.uniform(0.9, 1.1)) for pop in populacoes]
+        populacoes = [round(pop * random.uniform(0.9, 1.1)) for pop in populacoes]
 
         tropas_disponiveis = sum(populacoes)
         
@@ -212,6 +212,9 @@ def gerar_grafo(
         # Liga as últimas camadas (meios) entre os jogadores
     ultima_camadas = [regioes_jogadores[j][-1] for j in range(num_jogadores)]
 
+    # Precompute populations for all cities
+    populacoes_cidades = {cidade: dados["pop"] for cidade, dados in grafo_cidades.items()}
+
     for i in range(num_jogadores):
         for j in range(i + 1, num_jogadores):
             camada_i = ultima_camadas[i]
@@ -228,7 +231,7 @@ def gerar_grafo(
 
             for c1, c2 in pares:
                 # Peso baseado nas populações médias das cidades conectadas
-                peso = max(grafo_cidades[c1]["pop"],grafo_cidades[c2]["pop"])
+                peso = max(populacoes_cidades[c1], populacoes_cidades[c2])
                 adicionar_aresta(c1, c2, peso)
 
 
