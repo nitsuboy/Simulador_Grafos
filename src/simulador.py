@@ -19,7 +19,7 @@ class Simulador:
         
         # Cria os jogadores e instancia as IAs
         for i, (jogador_id, classe_ia) in enumerate(bots.items()):
-            base_id = f"base_j{i}" 
+            base_id = f"basej_{i}" 
             
             jogador = Jogador(id=jogador_id, id_base=base_id)
             self.jogo.jogadores[jogador_id] = jogador
@@ -95,8 +95,8 @@ if __name__ == "__main__":
     
     # Define as IAs competidoras
     bots = {
-        'j0': Perseus,
-        'j1': Perseus
+        '0': Perseus,
+        '1': Perseus
     }
 
     # Inicia a simulação

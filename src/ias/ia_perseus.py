@@ -14,7 +14,7 @@ class Perseus(IAInterface):
         bot_info = next((j for j in estado_do_jogo['jogadores'] if j['id'] == self.jogador_id), None)
         if not bot_info: return ""
         tropas_na_base = bot_info['tropas_na_base']
-        minha_base_id = f"base_{self.jogador_id}"
+        minha_base_id = f"basej_{self.jogador_id}"
         mapa_info = estado_do_jogo['mapa']
         lista_de_cidades = mapa_info['cidades']
         cidades_minhas = [c for c in lista_de_cidades if c['dono'] == self.jogador_id]
@@ -26,7 +26,7 @@ class Perseus(IAInterface):
         ordens_transporte_str = "Transporte:\n"
 
         # Com 10% de chance, tenta criar o cenário de "pedágio em cidade neutra"
-        if meu_transporte and meu_transporte['estado'] == 'ocioso' and random.random() < 0.1:
+        if meu_transporte and meu_transporte['estado'] == 'ocioso' :
             # Encontra uma cidade possuida que não seja a base, que tenha população e esteja no meio do caminho
             for cidade_origem in cidades_minhas:
                 if "base" not in cidade_origem['id'] and cidade_origem['populacao'] > 0:
@@ -48,8 +48,9 @@ class Perseus(IAInterface):
                             return ordens_tropas_str + "\n" + ordens_transporte_str        
         
         # Decisão de Tropa
-        if random.random() < 0.5 and tropas_na_base >= 10:
+        if tropas_na_base >= 10:
             vizinhos_da_base = mapa.get_vizinhos(minha_base_id)
+            print(f"Vizinhos da base {minha_base_id}: {vizinhos_da_base}")
             alvos_validos = [c for c in cidades_neutras if c['id'] in vizinhos_da_base]
             if alvos_validos:
                 self.contador_tropas += 1

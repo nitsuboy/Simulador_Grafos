@@ -274,4 +274,4 @@ if __name__ == "__main__":
     seed_para_teste = 12345 
 
     # Exporta o mapa gerado para um arquivo JSON
-    exportar_mapa_para_json(seed_para_teste, "src\\mapa.json")
+    exportar_mapa_para_json(seed_para_teste, "src\\mapa_debug.json")

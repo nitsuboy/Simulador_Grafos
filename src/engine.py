@@ -78,7 +78,8 @@ class Mapa:
     def get_vizinhos(self, cidade_id):
         """Retorna uma lista de IDs de cidades vizinhas a uma cidade específica."""
         # Agora usa a lista de adjacência
-        return [vizinho for vizinho, _ in self.lista_adjacencia.get(cidade_id, [])]
+        vizinhos = [vizinho for vizinho, _ in self.lista_adjacencia.get(cidade_id, [])]
+        return vizinhos
     
     def encontrar_caminho_bfs(self, inicio_id, fim_id):
         """Encontra o caminho mais curto entre duas cidades usando BFS."""
@@ -115,6 +116,10 @@ class Jogo:
                 self.mapa.adicionar_cidade(Cidade(cidade_data['id'], cidade_data['populacao']))
             for aresta_data in dados_mapa.get('arestas', []):
                 self.mapa.adicionar_aresta(aresta_data['de'], aresta_data['para'], aresta_data['peso'])
+            for adj in dados_mapa['lista_adjacencia']:
+                cidade = adj['cidade']
+                vizinhos = [(v['id'], v['peso']) for v in adj['vizinhos']]
+                self.mapa.lista_adjacencia[cidade] = vizinhos
 
     def gerar_estado_json(self, nome_arquivo, salvar_arquivo=True, diretorio="estados"):
         """
@@ -295,11 +300,14 @@ class Jogo:
 
         # Pré-carrega vizinhos e arestas iniciais pra evitar lookup desnecessário
         for vizinho_id in mapa.get_vizinhos(id_base):
+            print(f"Adicionando vizinho {vizinho_id} à fronteira inicial.")
             if vizinho_id in cidades_do_jogador:
+                print(f"Adicionando aresta de {id_base} para {vizinho_id} com peso {mapa.get_aresta(id_base, vizinho_id).peso}")
                 aresta = mapa.get_aresta(id_base, vizinho_id)
                 if aresta:
                     push(fronteira, (aresta.peso, id_base, vizinho_id))
 
+        print(f"Fronteira inicial: {fronteira}")
         while fronteira and len(cidades_conectadas) < len(cidades_do_jogador):
             peso, _, destino = pop(fronteira)
 
@@ -330,7 +338,7 @@ class Jogo:
             custo_total_manutencao, cidades_conectadas = self._calcular_mst_prim(jogador)
             
             cidades_possuidas_antes = {c.id for c in self.mapa.cidades.values() if c.dono == jogador.id}
-
+            print(f"Jogador {jogador.id}: Custo total de manutenção = {custo_total_manutencao} (Cidades conectadas: {cidades_conectadas})")
             # Identifica e neutraliza cidades isoladas
             cidades_isoladas = cidades_possuidas_antes - cidades_conectadas
             for cidade_id in cidades_isoladas:
@@ -637,16 +645,16 @@ class Jogo:
                     print(f"AVISO: Transporte não encontrou caminho para a coleta em {origem_coleta}.")
                     transporte.fila_de_comandos.clear()
 
-        def _iniciar_retorno_transporte(self, transporte, motivo):
-            """Função auxiliar para forçar o retorno do transporte à base."""
-            print(f"Transporte de {transporte.dono.id} iniciando retorno à base. Motivo: {motivo}")
-            transporte.fila_de_comandos.clear()
-            caminho_de_volta = self.mapa.encontrar_caminho_bfs(transporte.localizacao, transporte.dono.id_base)
-            if caminho_de_volta and len(caminho_de_volta) > 1:
-                transporte.caminho_atual = caminho_de_volta[1:]
-                transporte.estado = 'retornando'
-            else:
-                transporte.estado = 'ocioso' # Se já estiver na base ou não houver caminho disponível
+    def _iniciar_retorno_transporte(self, transporte, motivo):
+        """Função auxiliar para forçar o retorno do transporte à base."""
+        print(f"Transporte de {transporte.dono.id} iniciando retorno à base. Motivo: {motivo}")
+        transporte.fila_de_comandos.clear()
+        caminho_de_volta = self.mapa.encontrar_caminho_bfs(transporte.localizacao, transporte.dono.id_base)
+        if caminho_de_volta and len(caminho_de_volta) > 1:
+            transporte.caminho_atual = caminho_de_volta[1:]
+            transporte.estado = 'retornando'
+        else:
+            transporte.estado = 'ocioso' # Se já estiver na base ou não houver caminho disponível
 
     def _verificar_e_processar_fim_de_jogo(self):
         """
