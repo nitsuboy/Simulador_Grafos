@@ -57,7 +57,7 @@ def gerar_grafo(
     # Inicializa as bases dos jogadores
     for jogador in range(num_jogadores):
         grafo_cidades[f"basej_{jogador}"] = {
-            "pos": rotate((largura // 2, altura // 2), (RAIO, altura // 2), (6.283185 / num_jogadores) * jogador),
+            "pos": rotate((largura // 2, altura // 2), (RAIO, altura // 2), ((math.pi*2) / num_jogadores) * jogador),
             "pop": 100,
             "owner": jogador
         }
@@ -112,7 +112,7 @@ def gerar_grafo(
                 pos_x, pos_y = cidades_base[nome_cidade]["pos"]
                 nome_espelhado = f"{nome_cidade}_{jogador}"
                 grafo_cidades[nome_espelhado] = {
-                    "pos": rotate((largura // 2, altura // 2), (pos_x, pos_y), (6.283185 / num_jogadores) * jogador),
+                    "pos": rotate((largura // 2, altura // 2), (pos_x, pos_y), ((math.pi*2) / num_jogadores) * jogador),
                     "pop": cidades_base[nome_cidade]["pop"]
                 }
                 camada_espelhada.append(nome_espelhado)
