@@ -2,7 +2,7 @@ from collections import defaultdict
 import random
 import sys
 import math
-
+import json
 
 RAIO = 25
 MAX_Y = 250
@@ -26,16 +26,13 @@ def gerar_grafo(
     camadas: list[int] = None,
     seed: int = None,
     num_jogadores: int = 2,
-    ilha_central: bool = False,
     largura: int = 800,
     altura: int = 800,
-    max_meio: int = 2
 ):
     # Tratamento de argumentos
     if seed is None:
         seed = random.randrange(sys.maxsize)
     random.seed(seed)
-    print(seed)
 
     if not camadas:
         camadas = []
@@ -60,7 +57,7 @@ def gerar_grafo(
     # Inicializa as bases dos jogadores
     for jogador in range(num_jogadores):
         grafo_cidades[f"basej_{jogador}"] = {
-            "pos": rotate((largura // 2, altura // 2), (RAIO, altura // 2), (6.283185 / num_jogadores) * jogador),
+            "pos": rotate((largura // 2, altura // 2), (RAIO, altura // 2), ((math.pi*2) / num_jogadores) * jogador),
             "pop": 100,
             "owner": jogador
         }
@@ -115,7 +112,7 @@ def gerar_grafo(
                 pos_x, pos_y = cidades_base[nome_cidade]["pos"]
                 nome_espelhado = f"{nome_cidade}_{jogador}"
                 grafo_cidades[nome_espelhado] = {
-                    "pos": rotate((largura // 2, altura // 2), (pos_x, pos_y), (6.283185 / num_jogadores) * jogador),
+                    "pos": rotate((largura // 2, altura // 2), (pos_x, pos_y), ((math.pi*2) / num_jogadores) * jogador),
                     "pop": cidades_base[nome_cidade]["pop"]
                 }
                 camada_espelhada.append(nome_espelhado)
@@ -132,6 +129,8 @@ def gerar_grafo(
         if chave_aresta not in conjunto_arestas:
             arestas.append((no_a, no_b, peso))
             conjunto_arestas.add(chave_aresta)
+    
+    # Conexão de camadas aleatoriamente
     """
     # Conectando a primeira camada com a base
     for jogador in range(num_jogadores):
@@ -176,10 +175,15 @@ def gerar_grafo(
             for cidade_idx, nome_cidade in enumerate(camada_atual):
                 conexoes = []
                 conexoes.extend(camada_anterior)
-                if cidade_idx + 1 < len(camada_atual) and camada_atual[cidade_idx + 1] not in ja_escolhidas:
-                    conexoes.append(camada_atual[cidade_idx + 1])
-                if cidade_idx - 1 < 0 and camada_atual[cidade_idx - 1] not in ja_escolhidas:
-                    conexoes.append(camada_atual[cidade_idx - 1])
+                
+                if cidade_idx + 1 < len(camada_atual):
+                    par = tuple(sorted([nome_cidade, camada_atual[cidade_idx + 1]]))
+                    if par not in ja_escolhidas:
+                        conexoes.append(camada_atual[cidade_idx + 1])
+                if cidade_idx - 1 >= 0:
+                    par = tuple(sorted([nome_cidade, camada_atual[cidade_idx - 1]]))
+                    if par not in ja_escolhidas:
+                        conexoes.append(camada_atual[cidade_idx - 1])
                 
                 num_conexoes = random.randint(1, min(4,len(conexoes)))
                 conexoes_escolhidas = [camada_anterior[random.randint(0, len(camada_anterior) - 1)]]
@@ -194,22 +198,23 @@ def gerar_grafo(
                     if i == num_conexoes - 1:
                         peso = peso_total - sum(pesos)
                     else:
-                        peso = random.randint(peso_medio//75, peso_medio + (peso_medio//25))
+                        peso = random.randint(peso_medio//90, peso_medio + (peso_medio//10))
                     pesos.append(peso)
                 
                 for conexao, peso in zip(conexoes_escolhidas, pesos):
-                    ja_escolhidas.add(tuple(sorted([nome_cidade, conexao])))
-                    adicionar_aresta(nome_cidade, conexao, peso)
-    
+                    par = tuple(sorted([nome_cidade, conexao]))
+                    if par not in ja_escolhidas and peso > 0:
+                        ja_escolhidas.add(par)
+                        adicionar_aresta(nome_cidade, conexao, peso)
+
     for aresta in arestas.copy():
         a, b, p = aresta
         for i in range(1,num_jogadores):
             a = a.split("_")[0] + f"_{i}"
             b = b.split("_")[0] + f"_{i}"
             adicionar_aresta(a, b, p)
-        print(aresta)
     
-        # Liga as últimas camadas (meios) entre os jogadores
+    # Liga as últimas camadas (meios) entre os jogadores
     ultima_camadas = [regioes_jogadores[j][-1] for j in range(num_jogadores)]
 
     # Precompute populations for all cities
@@ -236,3 +241,37 @@ def gerar_grafo(
 
 
     return grafo_cidades, arestas, arestas_para_lista_adjacencia_nao_direcionado(arestas)
+
+def exportar_mapa_para_json(seed, nome_arquivo):
+    """
+    Extrai as estruturas de dados do gerador de tabuleiro (com pesos nas arestas)
+    e as converte para o formato JSON, incluindo a lista de adjacência.
+    """
+    cidades_geradas, arestas_geradas, lista_adjacencia = gerar_grafo(seed=seed)
+    mapa_para_json = {
+        "seed": seed,
+        "cidades": [],
+        "arestas": [],
+        "lista_adjacencia": []
+    }
+    for cidade_id, info in cidades_geradas.items():
+        nova_cidade = {"id": cidade_id, "populacao": info["pop"]}
+        mapa_para_json["cidades"].append(nova_cidade)
+    for origem_id, destino_id, peso in arestas_geradas:
+        nova_aresta = {"de": origem_id, "para": destino_id, "peso": peso}
+        mapa_para_json["arestas"].append(nova_aresta)
+    for cidade, vizinhos in lista_adjacencia.items():
+        mapa_para_json["lista_adjacencia"].append({
+            "cidade": cidade,
+            "vizinhos": [{"id": v[0], "peso": v[1]} for v in vizinhos]
+        })
+    with open(nome_arquivo, 'w', encoding='utf-8') as f:
+        json.dump(mapa_para_json, f, indent=2, ensure_ascii=False)
+    print(f"Mapa exportado com sucesso para {nome_arquivo}")
+
+if __name__ == "__main__":
+    # Gera o mapa
+    seed_para_teste = 12345 
+
+    # Exporta o mapa gerado para um arquivo JSON
+    exportar_mapa_para_json(seed_para_teste, "src\\mapa.json")

@@ -58,6 +58,7 @@ class Mapa:
     def __init__(self):
         self.cidades = {}
         self.arestas = {}
+        self.lista_adjacencia = {}  # Para consultas rápidas de vizinhos
 
     def adicionar_cidade(self, cidade):
         """Adiciona uma cidade ao mapa."""
@@ -76,12 +77,8 @@ class Mapa:
 
     def get_vizinhos(self, cidade_id):
         """Retorna uma lista de IDs de cidades vizinhas a uma cidade específica."""
-        vizinhos = []
-        for cidades_na_aresta in self.arestas.keys():
-            if cidade_id in cidades_na_aresta:
-                vizinho = cidades_na_aresta[0] if cidades_na_aresta[1] == cidade_id else cidades_na_aresta[1]
-                vizinhos.append(vizinho)
-        return vizinhos
+        # Agora usa a lista de adjacência
+        return [vizinho for vizinho, _ in self.lista_adjacencia.get(cidade_id, [])]
     
     def encontrar_caminho_bfs(self, inicio_id, fim_id):
         """Encontra o caminho mais curto entre duas cidades usando BFS."""
@@ -287,6 +284,8 @@ class Jogo:
         if len(cidades_do_jogador) <= 1:
             return 0, cidades_do_jogador
 
+        print(f"Calculando MST para o jogador {jogador.id} com cidades: {cidades_do_jogador}")
+        
         custo_total = 0
         cidades_conectadas = {id_base}
         fronteira = []
@@ -376,8 +375,7 @@ class Jogo:
         else:
             print(f"Falha na conquista! A força da Tropa {tropa_lider.id} ({forca_total_atacante}) é insuficiente para dominar {cidade.id}.")
             self._iniciar_recuo_forcado(tropa_lider, f"força insuficiente para conquistar a cidade neutra {cidade.id}")
-
-    
+   
     def _resolver_combate_jogador(self, cidade, forca_total_atacante, tropa_atacante_lider, eh_base=False):
         """Resolve o combate contra uma cidade ocupada por outro jogador ou uma base."""
         defensores = list(cidade.tropas_estacionadas)
@@ -421,7 +419,6 @@ class Jogo:
             
             # Remove tropas defensoras que foram destruídas
             cidade.tropas_estacionadas[:] = [t for t in defensores if t.forca > 0]
-
 
     def _executar_fase_de_combates(self):
         """Coleta todos os ataques do turno e os resolve."""
