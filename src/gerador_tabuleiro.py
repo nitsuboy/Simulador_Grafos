@@ -3,6 +3,7 @@ import random
 import sys
 import math
 import json
+import os
 
 RAIO = 25
 MAX_Y = 250
@@ -261,6 +262,7 @@ class Grafo:
                         
                         for i in range(len(conexoes_escolhidas)):
                             peso = 0
+                            
                             if i == num_conexoes - 1:
                                 peso = peso_total - sum(pesos)
                             else:
@@ -268,6 +270,7 @@ class Grafo:
                             pesos.append(peso)
                         
                         for conexao, peso in zip(conexoes_escolhidas, pesos):
+                            peso = max(0, peso)  # Garante que o peso não seja negativo
                             par = tuple(sorted([nome_cidade, conexao]))
                             if par not in ja_escolhidas and peso > 0:
                                 ja_escolhidas.add(par)
@@ -276,10 +279,10 @@ class Grafo:
             for aresta in self.arestas.copy():
                 a, b, p = aresta
                 for i in range(1,num_jogadores):
-                    a = a.split("_")[0] + f"_{i}"
-                    b = b.split("_")[0] + f"_{i}"
-                    self.adicionar_aresta(a, b, p)
-            
+                    a_aux = a.split("_")[0] + f"_{i}"
+                    b_aux = b.split("_")[0] + f"_{i}"
+                    self.adicionar_aresta(a_aux, b_aux, p)
+
             # Liga as últimas camadas (meios) entre os jogadores
             ultima_camadas = [regioes_jogadores[j][-1] for j in range(num_jogadores)]
 
@@ -338,13 +341,24 @@ def exportar_mapa_para_json(grafo, nome_arquivo):
             "cidade": cidade,
             "vizinhos": [{"id": v[0], "peso": v[1]} for v in vizinhos]
         })
+        
+    if os.path.exists(nome_arquivo):
+        resposta = input(f"O arquivo '{nome_arquivo}' já existe. Deseja sobrescrever? (s/n): ").strip().lower()
+        if resposta != 's':
+            print("Exportação cancelada.")
+            return
+        
     with open(nome_arquivo, 'w', encoding='utf-8') as f:
         json.dump(mapa_para_json, f, indent=2, ensure_ascii=False)
     print(f"Mapa exportado com sucesso para {nome_arquivo}")
 
 if __name__ == "__main__":
     # Gera o mapa
-    seed_para_teste = 12345 
+    if len(sys.argv) > 1:
+        seed_para_teste = int(sys.argv[1])
+    else:
+        seed_para_teste = 12345
+    
     grafo = Grafo()
     nos, arestas = grafo.gerar_grafo(seed=seed_para_teste, num_jogadores=2)
     print("Mapa gerado com sucesso.")

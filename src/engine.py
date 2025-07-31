@@ -62,13 +62,18 @@ class Mapa:
 
     def adicionar_cidade(self, cidade):
         """Adiciona uma cidade ao mapa."""
+        if cidade.id in self.cidades:
+            print(f"AVISO: Cidade {cidade.id} já existe no mapa. Ignorando.")
+            return
         self.cidades[cidade.id] = cidade
 
     def adicionar_aresta(self, cidade1_id, cidade2_id, peso):
         """Adiciona uma aresta entre duas cidades."""
         chave = tuple(sorted((cidade1_id, cidade2_id)))
-        if chave not in self.arestas:
-            self.arestas[chave] = Aresta(cidade1_id, cidade2_id, peso)
+        if chave in self.arestas:
+            print(f"AVISO: Aresta {chave} já existe. Ignorando.")
+            return
+        self.arestas[chave] = Aresta(cidade1_id, cidade2_id, peso)
 
     def get_aresta(self, cidade1_id, cidade2_id):
         """Retorna a aresta entre duas cidades, se existir."""
