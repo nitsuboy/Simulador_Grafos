@@ -98,10 +98,17 @@ class Mapa:
                     fila.append(novo_caminho)
         return None
 
+class MapaSomenteLeitura:
+    def __init__(self, mapa):
+        self._mapa = mapa
+    def get_vizinhos(self, cidade_id):
+        return self._mapa.get_vizinhos(cidade_id)
+
 class Jogo:
     """Classe principal da engine, gerencia a lógica e o estado do jogo."""
     def __init__(self):
         self.mapa = Mapa()
+        self.mapa_somente_leitura = MapaSomenteLeitura(self.mapa)
         self.jogadores = {}
         self.turno_atual = 0
         self.turno_maximo = 100

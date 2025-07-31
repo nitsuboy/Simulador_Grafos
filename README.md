@@ -1,4 +1,4 @@
-# Simulador de Conquista e Estratégia — Manual Oficial (v1.0)
+# Simulador de Conquista e Estratégia — Manual Oficial (v1.01)
 
 *Última atualização: 29 de julho de 2025, 21:05*
 
@@ -171,13 +171,13 @@ class MeuBot(IAInterface):
 
     def decidir_acoes(self, estado_do_jogo, mapa):
         ordens_tropas = "Novas Tropas:\n"
-        tropas_disponiveis = next(j for j in estado_do_jogo['jogadores'] if j['id'] == self.jogador_id)['tropas_na_base']
+        tropas_disponiveis = next(j for j in estado_do_jogo['jogadores'] if ['id'] == self.jogador_id)['tropas_na_base']
 
         if tropas_disponiveis >= 10:
             self.contador_tropas += 1
             id_tropa = f"{self.jogador_id}_{self.contador_tropas}"
             alvo = "c1_0"  # Exemplo simplificado
-            ordens_tropas += f"{id_tropa} 10: base_{self.jogador_id} -> ataca {alvo}\n"
+            ordens_tropas += f"{id_tropa} 10: base_j{self.jogador_id} -> ataca {alvo}\n"
 
         ordens_transporte = "Transporte:\n# Nenhuma ordem de transporte por enquanto"
 
@@ -193,7 +193,7 @@ from outro_bot import OutroBot
 
 if __name__ == "__main__":
     competidores = {
-        'j0': MeuBot,
-        'j1': OutroBot
+        '0': MeuBot,
+        '1': OutroBot
     }
 ```

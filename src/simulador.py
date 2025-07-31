@@ -77,7 +77,7 @@ class Simulador:
             for jogador_id, ia_obj in self.ias.items():
                 if jogador_id not in self.jogo.jogadores_derrotados:
                     print(f"--- Vez do Jogador {jogador_id} ({ia_obj.__class__.__name__}) ---")
-                    ordens_em_texto = ia_obj.decidir_acoes(estado_do_jogo_atual, self.jogo.mapa)
+                    ordens_em_texto = ia_obj.decidir_acoes(estado_do_jogo_atual, self.jogo.mapa_somente_leitura)
                     # O parser traduz o comando que a IA retorna em um formato que o simulador entende
                     ordens_parseadas[jogador_id] = parser.parse_string_de_ordens(ordens_em_texto)
 
