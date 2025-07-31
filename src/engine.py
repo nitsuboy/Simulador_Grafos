@@ -62,13 +62,18 @@ class Mapa:
 
     def adicionar_cidade(self, cidade):
         """Adiciona uma cidade ao mapa."""
+        if cidade.id in self.cidades:
+            print(f"AVISO: Cidade {cidade.id} já existe no mapa. Ignorando.")
+            return
         self.cidades[cidade.id] = cidade
 
     def adicionar_aresta(self, cidade1_id, cidade2_id, peso):
         """Adiciona uma aresta entre duas cidades."""
         chave = tuple(sorted((cidade1_id, cidade2_id)))
-        if chave not in self.arestas:
-            self.arestas[chave] = Aresta(cidade1_id, cidade2_id, peso)
+        if chave in self.arestas:
+            print(f"AVISO: Aresta {chave} já existe. Ignorando.")
+            return
+        self.arestas[chave] = Aresta(cidade1_id, cidade2_id, peso)
 
     def get_aresta(self, cidade1_id, cidade2_id):
         """Retorna a aresta entre duas cidades, se existir."""
@@ -98,10 +103,17 @@ class Mapa:
                     fila.append(novo_caminho)
         return None
 
+class MapaSomenteLeitura:
+    def __init__(self, mapa):
+        self._mapa = mapa
+    def get_vizinhos(self, cidade_id):
+        return self._mapa.get_vizinhos(cidade_id)
+
 class Jogo:
     """Classe principal da engine, gerencia a lógica e o estado do jogo."""
     def __init__(self):
         self.mapa = Mapa()
+        self.mapa_somente_leitura = MapaSomenteLeitura(self.mapa)
         self.jogadores = {}
         self.turno_atual = 0
         self.turno_maximo = 100

@@ -1,5 +1,9 @@
 {
-  "seed": 12345,
+  "configs": {
+    "seed": 12345,
+    "num_jogadores": 2,
+    "camadas": null
+  },
   "cidades": [
     {
       "id": "basej_0",
