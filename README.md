@@ -1,6 +1,6 @@
-# Simulador de Conquista e Estratégia — Manual Oficial (v1.01)
+# Simulador de Conquista e Estratégia — Manual Oficial (v1.02)
 
-*Última atualização: 29 de julho de 2025, 21:05*
+*Última atualização: 1 de agosto de 2025, 00:30*
 
 ---
 
@@ -66,9 +66,9 @@ A redução de 50% na força do atacante aplica-se **apenas** às situações:
 
 #### Comandos e Comportamentos
 
-* `Atacar -> Permanecer`: Conquista e ocupa a cidade com a tropa sobrevivente.
-* `Atacar` (modo incursão): A tropa retorna automaticamente à Base após o ataque.
-* `Recuar`: Tropas estacionadas retornam à Base. Este comando **ignora restrições de peso** da aresta.
+* `ataca cidade_id -> permanece`: Conquista e ocupa a cidade com a tropa sobrevivente.
+* `ataca cidade_id` (modo incursão): A tropa retorna automaticamente à Base após o ataque.
+* `recua`: Tropas estacionadas retornam à Base. Este comando **ignora restrições de peso** da aresta.
 
 ---
 
@@ -88,7 +88,7 @@ A redução de 50% na força do atacante aplica-se **apenas** às situações:
 A cada turno, cada IA recebe:
 
 * `estado_do_jogo`: Dicionário contendo o turno atual, dados dos jogadores, cidades, tropas em campo etc.
-* `mapa`: Objeto da classe `Mapa`, com métodos auxiliares como `encontrar_caminho_bfs()`.
+* `mapa`: Objeto da classe `Mapa` com acesso a `.get_cidades()`,`.get_arestas()`,`.get_lista_adjacencia()`,`.get_vizinhos(cidade_id)`.
 
 ### Formato de Saída da IA
 

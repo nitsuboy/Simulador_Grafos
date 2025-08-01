@@ -108,6 +108,12 @@ class MapaSomenteLeitura:
         self._mapa = mapa
     def get_vizinhos(self, cidade_id):
         return self._mapa.get_vizinhos(cidade_id)
+    def get_cidades(self):
+        return self._mapa.cidades
+    def get_arestas(self):
+        return self._mapa.arestas
+    def get_lista_adjacencia(self):
+        return self._mapa.lista_adjacencia
 
 class Jogo:
     """Classe principal da engine, gerencia a lógica e o estado do jogo."""
@@ -300,8 +306,6 @@ class Jogo:
 
         if len(cidades_do_jogador) <= 1:
             return 0, cidades_do_jogador
-
-        print(f"Calculando MST para o jogador {jogador.id} com cidades: {cidades_do_jogador}")
         
         custo_total = 0
         cidades_conectadas = {id_base}
@@ -312,14 +316,11 @@ class Jogo:
 
         # Pré-carrega vizinhos e arestas iniciais pra evitar lookup desnecessário
         for vizinho_id in mapa.get_vizinhos(id_base):
-            print(f"Adicionando vizinho {vizinho_id} à fronteira inicial.")
             if vizinho_id in cidades_do_jogador:
-                print(f"Adicionando aresta de {id_base} para {vizinho_id} com peso {mapa.get_aresta(id_base, vizinho_id).peso}")
                 aresta = mapa.get_aresta(id_base, vizinho_id)
                 if aresta:
                     push(fronteira, (aresta.peso, id_base, vizinho_id))
 
-        print(f"Fronteira inicial: {fronteira}")
         while fronteira and len(cidades_conectadas) < len(cidades_do_jogador):
             peso, _, destino = pop(fronteira)
 
@@ -387,9 +388,9 @@ class Jogo:
             print(f"Vitória! Jogador {tropa_lider.dono.id} conquistou {cidade.id}!")
             # A cidade assume novo dono
             cidade.dono = tropa_lider.dono.id
-
             # Muda o estado para tratar na Etapa 4
             tropa_lider.estado = 'vitoriosa'
+            tropa_lider.localizacao = cidade.id  # Atualiza a localização da tropa
 
         # Falha: A força do atacante é insuficiente.
         else:
@@ -480,11 +481,16 @@ class Jogo:
                     proximo_comando = tropa.fila_de_comandos[0] if tropa.fila_de_comandos else None
                     
                     if proximo_comando and proximo_comando['tipo'] == 'PERMANECER':
-                        tropa.fila_de_comandos.pop(0) # Consome o comando
-                        tropa.estado = 'estacionada'
+                        tropa.fila_de_comandos.pop(0)  # Consome o comando
                         cidade_conquistada = self.mapa.cidades[tropa.localizacao]
-                        cidade_conquistada.tropas_estacionadas.append(tropa)
-                        print(f"Tropa {tropa.id} venceu e permaneceu em {tropa.localizacao}.")
+                        if tropa not in cidade_conquistada.tropas_estacionadas:
+                            tropa.estado = 'estacionada'
+                            cidade_conquistada.tropas_estacionadas.append(tropa)
+                            if tropa in jogador.tropas:
+                                jogador.tropas.remove(tropa)
+                            print(f"Tropa {tropa.id} venceu e permaneceu em {tropa.localizacao}.")
+                        else:
+                            print(f"AVISO: Tropa {tropa.id} já está estacionada em {tropa.localizacao}.")
                     else:
                         # Se não houver comando ou não for PERMANECER, a tropa recua (raid)
                         print(f"Tropa {tropa.id} venceu (raid) e iniciará o recuo.")
@@ -515,11 +521,22 @@ class Jogo:
                     print(f"Tropa {tropa.id} ({tropa.estado}) moveu-se para {tropa.localizacao}")
                 
                 if not tropa.caminho_atual:
-                    tropa.estado = 'ociosa'
-                    print(f"Tropa {tropa.id} chegou ao seu destino.")
+                    # Verifica se a tropa recuou para a base
+                    if tropa.estado == 'recuando' and tropa.localizacao == jogador.id_base:
+                        jogador.tropas_na_base += tropa.forca
+                        print(f"Tropa {tropa.id} retornou à base e foi convertida em tropas na base (+{tropa.forca}).")
+                        jogador.tropas.remove(tropa)
+                    else:
+                        tropa.estado = 'ociosa'
+                        print(f"Tropa {tropa.id} chegou ao seu destino.")
             
             # Lógica para tropas ociosas que têm novos comandos para executar
-            elif tropa.estado == 'ociosa' and tropa.fila_de_comandos:
+            elif tropa.estado in ['ociosa','estacionada'] and tropa.fila_de_comandos:
+                if tropa.estado == 'estacionada':
+                    cidade_atual = self.mapa.cidades[tropa.localizacao]
+                    if tropa in cidade_atual.tropas_estacionadas:
+                        cidade_atual.tropas_estacionadas.remove(tropa)
+                
                 comando_atual = tropa.fila_de_comandos.pop(0)
 
                 if comando_atual['tipo'] == 'MOVER':
@@ -543,11 +560,15 @@ class Jogo:
                         print(f"ERRO: Tropa {tropa.id} tentou atacar {alvo_id} de {tropa.localizacao}, mas não é vizinho.")
                 
                 elif comando_atual['tipo'] == 'PERMANECER':
-                    tropa.estado = 'estacionada'
                     cidade_atual = self.mapa.cidades[tropa.localizacao]
-                    cidade_atual.tropas_estacionadas.append(tropa)
-                    jogador.tropas.remove(tropa)
-                    print(f"Tropa {tropa.id} agora está estacionada em {tropa.localizacao}.")
+                    if tropa not in cidade_atual.tropas_estacionadas:
+                        tropa.estado = 'estacionada'
+                        cidade_atual.tropas_estacionadas.append(tropa)
+                        if tropa in jogador.tropas:
+                            jogador.tropas.remove(tropa)
+                        print(f"Tropa {tropa.id} agora está estacionada em {tropa.localizacao}.")
+                    else:
+                        print(f"AVISO: Tropa {tropa.id} já está estacionada em {tropa.localizacao}.")
 
                 elif comando_atual['tipo'] == 'RECUAR':
                     print(f"Tropa {tropa.id} iniciando recuo voluntário de {tropa.localizacao}.")
