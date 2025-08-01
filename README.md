@@ -66,9 +66,9 @@ A redução de 50% na força do atacante aplica-se **apenas** às situações:
 
 #### Comandos e Comportamentos
 
-* `Atacar -> Permanecer`: Conquista e ocupa a cidade com a tropa sobrevivente.
-* `Atacar` (modo incursão): A tropa retorna automaticamente à Base após o ataque.
-* `Recuar`: Tropas estacionadas retornam à Base. Este comando **ignora restrições de peso** da aresta.
+* `ataca cidade_id -> permanece`: Conquista e ocupa a cidade com a tropa sobrevivente.
+* `ataca` (modo incursão): A tropa retorna automaticamente à Base após o ataque.
+* `recua`: Tropas estacionadas retornam à Base. Este comando **ignora restrições de peso** da aresta.
 
 ---
 
@@ -88,7 +88,7 @@ A redução de 50% na força do atacante aplica-se **apenas** às situações:
 A cada turno, cada IA recebe:
 
 * `estado_do_jogo`: Dicionário contendo o turno atual, dados dos jogadores, cidades, tropas em campo etc.
-* `mapa`: Objeto da classe `Mapa` com acesso a `mapa.get_cidades()`,`mapa.get_arestas()`,`mapa.get_lista_adjacencia()`.
+* `mapa`: Objeto da classe `Mapa` com acesso a `.get_cidades()`,`.get_arestas()`,`.get_lista_adjacencia()`,`.get_vizinhos(cidade_id)`.
 
 ### Formato de Saída da IA
 

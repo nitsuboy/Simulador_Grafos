@@ -114,8 +114,6 @@ class MapaSomenteLeitura:
         return self._mapa.arestas
     def get_lista_adjacencia(self):
         return self._mapa.lista_adjacencia
-    def encontrar_caminho_bfs(self, inicio_id, fim_id):
-        return self._mapa.encontrar_caminho_bfs(inicio_id, fim_id)
 
 class Jogo:
     """Classe principal da engine, gerencia a lógica e o estado do jogo."""
