@@ -114,6 +114,8 @@ class MapaSomenteLeitura:
         return self._mapa.arestas
     def get_lista_adjacencia(self):
         return self._mapa.lista_adjacencia
+    def encontrar_caminho_bfs(self, inicio_id, fim_id):
+        return self._mapa.encontrar_caminho_bfs(inicio_id, fim_id)
 
 class Jogo:
     """Classe principal da engine, gerencia a lógica e o estado do jogo."""
@@ -162,7 +164,8 @@ class Jogo:
                 "id": cidade.id,
                 "populacao": cidade.populacao,
                 "pos": getattr(cidade, 'pos', [0, 0]),
-                "dono": cidade.dono
+                "dono": cidade.dono,
+                "tropas_estacionadas": [{"id": tropa.id, "forca": tropa.forca} for tropa in cidade.tropas_estacionadas]
             })
             # Ao mesmo tempo, se a cidade tiver um dono, adiciona à lista de contagem
             if cidade.dono is not None and cidade.dono in cidades_possuidas_por_jogador:
@@ -424,6 +427,7 @@ class Jogo:
             cidade.dono = tropa_atacante_lider.dono.id
             tropa_atacante_lider.forca -= defesa_total # Atacante perde força igual à defesa
             tropa_atacante_lider.estado = 'vitoriosa'
+            tropa_atacante_lider.localizacao = cidade.id  # Atualiza a localização da tropa
 
         else: # Vitória do defensor
             print(f"Defensores de {cidade.dono} venceram o ataque em {cidade.id}!")
