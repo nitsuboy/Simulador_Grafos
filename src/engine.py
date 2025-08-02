@@ -602,6 +602,8 @@ class Jogo:
             
             elif tropa.estado == 'estacionada' and tropa.fila_de_comandos:
                 
+                comando_atual = tropa.fila_de_comandos.pop(0)
+                
                 if comando_atual['tipo'] in ['MOVER', 'ATACAR', 'PERMANECER']:
                     print(f"AVISO: Tropa {tropa.id} está estacionada e não pode executar o comando {comando_atual['tipo']}.")
                     tropa.fila_de_comandos = []  # Recoloca o comando na fila
