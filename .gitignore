@@ -3,7 +3,7 @@ __pycache__/
 *.py[codz]
 *$py.class
 
-estados/
+# estados/
 # C extensions
 *.so
 
@@ -53,7 +53,7 @@ coverage.xml
 cover/
 
 # Dump de estados do simulador
-\estados
+# \estados
 
 # Translations
 *.mo

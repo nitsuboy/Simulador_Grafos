@@ -2,6 +2,7 @@ import pygame
 import gerador_tabuleiro
 import random
 import json
+import os
 
 # Inicializar Pygame
 pygame.init()
@@ -62,6 +63,25 @@ def desenhar_legenda(nomes_jogadores):
         y += 25
 
 game_data = {}
+
+def carregar_mapa_do_json(caminho_json='mapa_debug.json'):
+    script_dir = os.path.dirname(__file__)
+    caminho_abs = os.path.join(script_dir, caminho_json)
+    with open(caminho_abs, 'r', encoding='utf-8') as f:
+        dados = json.load(f)
+    
+    cidades_carregadas = {c['id']: {'pop': c['populacao'], 'pos': tuple(map(int, c['pos'])), 'owner': None} for c in dados['cidades']}
+    arestas_carregadas = [(a['de'], a['para'], a['peso']) for a in dados['arestas']]
+
+    # Definir donos das bases
+    for cid in cidades_carregadas:
+        if 'basej_0' in cid:
+            cidades_carregadas[cid]['owner'] = 0
+        elif 'basej_1' in cid:
+            cidades_carregadas[cid]['owner'] = 1
+            
+    return cidades_carregadas, arestas_carregadas
+
 
 def gerar_estado_jogo_json(cidades_orig, arestas_orig, turno_atual):
     mapa_cidades =  [{ "id": nome, "populacao": info["pop"], "pos": info["pos"] } for nome, info in cidades_orig.items()]
@@ -138,6 +158,7 @@ next_round_button_rect = pygame.Rect(WIDTH - 220, 20, 200, 50)
 
 # Variáveis de Jogo
 round_counter = 1
+cidades, arestas = {}, []
 
 # Loop principal
 running = True
@@ -153,7 +174,7 @@ while running:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if start_button_rect.collidepoint(event.pos):
                     game_state = 'game'
-                    cidades, arestas, list_adj = gerador_tabuleiro.gerar_grafo(num_jogadores=len(player_names), largura=WIDTH, altura=HEIGHT)
+                    cidades, arestas = carregar_mapa_do_json()
                 else:
                     # Ativar a caixa de texto clicada
                     clicked_on_input = False
@@ -194,8 +215,7 @@ while running:
                 if next_round_button_rect.collidepoint(event.pos):
                     round_counter += 1
                     call_new_status()
-                elif botao_rect.collidepoint(event.pos):
-                    cidades, arestas, list_adj = gerador_tabuleiro.gerar_grafo(num_jogadores=len(player_names), largura=WIDTH, altura=HEIGHT)
+                
 
         if tile_image:
             tile_width, tile_height = tile_image.get_size()

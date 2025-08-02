@@ -1,0 +1,440 @@
+{
+  "turno_atual": 3,
+  "mapa": {
+    "cidades": [
+      {
+        "id": "basej_0",
+        "populacao": 100,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": "0",
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "basej_1",
+        "populacao": 100,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": "1",
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "c1_0",
+        "populacao": 114,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": null,
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "c2_0",
+        "populacao": 99,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": "0",
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "c3_0",
+        "populacao": 103,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": null,
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "c4_0",
+        "populacao": 0,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": "0",
+        "tropas_estacionadas": [
+          {
+            "id": "10_2",
+            "forca": 1
+          }
+        ]
+      },
+      {
+        "id": "c5_0",
+        "populacao": 545,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": null,
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "c6_0",
+        "populacao": 359,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": null,
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "c7_0",
+        "populacao": 1036,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": null,
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "c8_0",
+        "populacao": 1157,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": null,
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "c9_0",
+        "populacao": 778,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": null,
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "c1_1",
+        "populacao": 114,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": null,
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "c2_1",
+        "populacao": 99,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": null,
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "c3_1",
+        "populacao": 103,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": null,
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "c4_1",
+        "populacao": 85,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": null,
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "c5_1",
+        "populacao": 545,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": null,
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "c6_1",
+        "populacao": 359,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": null,
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "c7_1",
+        "populacao": 1036,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": null,
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "c8_1",
+        "populacao": 1157,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": null,
+        "tropas_estacionadas": []
+      },
+      {
+        "id": "c9_1",
+        "populacao": 778,
+        "pos": [
+          0,
+          0
+        ],
+        "dono": null,
+        "tropas_estacionadas": []
+      }
+    ],
+    "arestas": [
+      {
+        "de": "c1_0",
+        "para": "basej_0",
+        "peso": 13
+      },
+      {
+        "de": "c1_0",
+        "para": "c2_0",
+        "peso": 101
+      },
+      {
+        "de": "c2_0",
+        "para": "basej_0",
+        "peso": 99
+      },
+      {
+        "de": "c3_0",
+        "para": "basej_0",
+        "peso": 29
+      },
+      {
+        "de": "c3_0",
+        "para": "c4_0",
+        "peso": 74
+      },
+      {
+        "de": "c4_0",
+        "para": "basej_0",
+        "peso": 85
+      },
+      {
+        "de": "c5_0",
+        "para": "c1_0",
+        "peso": 149
+      },
+      {
+        "de": "c5_0",
+        "para": "c2_0",
+        "peso": 46
+      },
+      {
+        "de": "c5_0",
+        "para": "c4_0",
+        "peso": 74
+      },
+      {
+        "de": "c5_0",
+        "para": "c6_0",
+        "peso": 276
+      },
+      {
+        "de": "c6_0",
+        "para": "c4_0",
+        "peso": 359
+      },
+      {
+        "de": "c7_0",
+        "para": "c5_0",
+        "peso": 1036
+      },
+      {
+        "de": "c8_0",
+        "para": "c5_0",
+        "peso": 121
+      },
+      {
+        "de": "c8_0",
+        "para": "c7_0",
+        "peso": 64
+      },
+      {
+        "de": "c8_0",
+        "para": "c9_0",
+        "peso": 258
+      },
+      {
+        "de": "c8_0",
+        "para": "c6_0",
+        "peso": 714
+      },
+      {
+        "de": "c9_0",
+        "para": "c5_0",
+        "peso": 778
+      },
+      {
+        "de": "c1_1",
+        "para": "basej_1",
+        "peso": 13
+      },
+      {
+        "de": "c1_1",
+        "para": "c2_1",
+        "peso": 101
+      },
+      {
+        "de": "c2_1",
+        "para": "basej_1",
+        "peso": 99
+      },
+      {
+        "de": "c3_1",
+        "para": "basej_1",
+        "peso": 29
+      },
+      {
+        "de": "c3_1",
+        "para": "c4_1",
+        "peso": 74
+      },
+      {
+        "de": "c4_1",
+        "para": "basej_1",
+        "peso": 85
+      },
+      {
+        "de": "c5_1",
+        "para": "c1_1",
+        "peso": 149
+      },
+      {
+        "de": "c5_1",
+        "para": "c2_1",
+        "peso": 46
+      },
+      {
+        "de": "c5_1",
+        "para": "c4_1",
+        "peso": 74
+      },
+      {
+        "de": "c5_1",
+        "para": "c6_1",
+        "peso": 276
+      },
+      {
+        "de": "c6_1",
+        "para": "c4_1",
+        "peso": 359
+      },
+      {
+        "de": "c7_1",
+        "para": "c5_1",
+        "peso": 1036
+      },
+      {
+        "de": "c8_1",
+        "para": "c5_1",
+        "peso": 121
+      },
+      {
+        "de": "c8_1",
+        "para": "c7_1",
+        "peso": 64
+      },
+      {
+        "de": "c8_1",
+        "para": "c9_1",
+        "peso": 258
+      },
+      {
+        "de": "c8_1",
+        "para": "c6_1",
+        "peso": 714
+      },
+      {
+        "de": "c9_1",
+        "para": "c5_1",
+        "peso": 778
+      },
+      {
+        "de": "c8_0",
+        "para": "c8_1",
+        "peso": 1157
+      },
+      {
+        "de": "c9_0",
+        "para": "c7_1",
+        "peso": 1036
+      }
+    ]
+  },
+  "jogadores": [
+    {
+      "id": "0",
+      "tropas_na_base": 85,
+      "cidades_possuidas": [
+        "basej_0",
+        "c2_0",
+        "c4_0"
+      ]
+    },
+    {
+      "id": "1",
+      "tropas_na_base": 74,
+      "cidades_possuidas": [
+        "basej_1"
+      ]
+    }
+  ],
+  "tropas_em_campo": [
+    {
+      "id": "10_3",
+      "dono": "0",
+      "forca": 99,
+      "localizacao": "c2_0"
+    },
+    {
+      "id": "1_4",
+      "dono": "1",
+      "forca": 26,
+      "localizacao": "basej_1"
+    }
+  ],
+  "transportes": [
+    {
+      "dono": "0",
+      "localizacao": "basej_0",
+      "carga_populacao": 0,
+      "estado": "ocioso"
+    },
+    {
+      "dono": "1",
+      "localizacao": "basej_1",
+      "carga_populacao": 0,
+      "estado": "ocioso"
+    }
+  ]
+}
