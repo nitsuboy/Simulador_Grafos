@@ -39,7 +39,7 @@
           0,
           0
         ],
-        "dono": null,
+        "dono": "0",
         "tropas_estacionadas": []
       },
       {
@@ -74,7 +74,7 @@
           0,
           0
         ],
-        "dono": null,
+        "dono": "0",
         "tropas_estacionadas": []
       },
       {
@@ -134,7 +134,7 @@
           0,
           0
         ],
-        "dono": null,
+        "dono": "1",
         "tropas_estacionadas": []
       },
       {
@@ -164,7 +164,7 @@
           0,
           0
         ],
-        "dono": null,
+        "dono": "1",
         "tropas_estacionadas": []
       },
       {
@@ -414,6 +414,12 @@
       "dono": "1",
       "forca": 31,
       "localizacao": "basej_1"
+    },
+    {
+      "id": "1_4",
+      "dono": "1",
+      "forca": 51,
+      "localizacao": "c2_1"
     }
   ],
   "transportes": [

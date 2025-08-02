@@ -52,9 +52,6 @@ coverage.xml
 .pytest_cache/
 cover/
 
-# Dump de estados do simulador
-# \estados
-
 # Translations
 *.mo
 *.pot

@@ -39,7 +39,7 @@
           0,
           0
         ],
-        "dono": null,
+        "dono": "0",
         "tropas_estacionadas": []
       },
       {
@@ -134,7 +134,7 @@
           0,
           0
         ],
-        "dono": null,
+        "dono": "1",
         "tropas_estacionadas": []
       },
       {
