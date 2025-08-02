@@ -69,6 +69,7 @@ A redução de 50% na força do atacante aplica-se **apenas** às situações:
 * `ataca cidade_id -> permanece`: Conquista e ocupa a cidade com a tropa sobrevivente.
 * `ataca cidade_id` (modo incursão): A tropa retorna automaticamente à Base após o ataque.
 * `recua`: Tropas estacionadas retornam à Base. Este comando **ignora restrições de peso** da aresta.
+* caso a torpa esteja `estacionada` apos o comando `permanece`, a tropa pode ser retirada por um comando de recuar
 
 ---
 
