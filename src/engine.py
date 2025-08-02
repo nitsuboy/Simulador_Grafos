@@ -399,24 +399,32 @@ class Jogo:
                 # Remove todas as tropas do jogador
                 jogador.tropas.clear()
 
-    def _resolver_combate_neutro(self, cidade, forca_total_atacante, tropa_lider):
+    def _resolver_combate_neutro(self, cidade, lista_de_atacantes):
         """Resolve o combate contra uma cidade neutra. As regras são diferentes de um combate normal."""
+        
+        forca_total_atacante = sum(tropa.forca for tropa in lista_de_atacantes)        
         defesa_total = cidade.populacao
         print(f"Tentativa de conquista em {cidade.id} (Neutra): Força da Tropa({forca_total_atacante}) vs População({defesa_total})")
 
         # Sucesso: A força do atacante deve ser maior ou igual à população.
         if forca_total_atacante >= defesa_total:
-            print(f"Vitória! Jogador {tropa_lider.dono.id} conquistou {cidade.id}!")
+            print(f"Vitória! Jogador {lista_de_atacantes[0].dono.id} conquistou {cidade.id}!")
             # A cidade assume novo dono
-            cidade.dono = tropa_lider.dono.id
+            cidade.dono = lista_de_atacantes[0].dono.id
             # Muda o estado para tratar na Etapa 4
-            tropa_lider.estado = 'vitoriosa'
-            tropa_lider.localizacao = cidade.id  # Atualiza a localização da tropa
+            for tropa in lista_de_atacantes:
+                tropa.estado = 'vitoriosa'
+                tropa.localizacao = cidade.id  # Atualiza a localização da tropa
 
         # Falha: A força do atacante é insuficiente.
         else:
-            print(f"Falha na conquista! A força da Tropa {tropa_lider.id} ({forca_total_atacante}) é insuficiente para dominar {cidade.id}.")
-            self._iniciar_recuo_forcado(tropa_lider, f"força insuficiente para conquistar a cidade neutra {cidade.id}")
+            if len(lista_de_atacantes) > 1:
+                print(f"Falha na conquista! A força das Tropas {lista_de_atacantes} ({forca_total_atacante}) é insuficiente para dominar {cidade.id}.")
+                for tropa in lista_de_atacantes:
+                    self._iniciar_recuo_forcado(tropa, f"força insuficiente para conquistar a cidade neutra {cidade.id}")
+            else:
+                print(f"Falha na conquista! A força da Tropa {lista_de_atacantes[0]} ({forca_total_atacante}) é insuficiente para dominar {cidade.id}.")
+                self._iniciar_recuo_forcado(lista_de_atacantes[0], f"força insuficiente para conquistar a cidade neutra {cidade.id}")
    
     def _resolver_combate_jogador(self, cidade, forca_total_atacante, tropa_atacante_lider, eh_base=False):
         """Resolve o combate contra uma cidade ocupada por outro jogador ou uma base."""
@@ -484,12 +492,8 @@ class Jogo:
             forca_total_atacante = sum(t.forca for t in lista_de_atacantes)
             tropa_lider = lista_de_atacantes[0] # A primeira tropa lidera o ataque
 
-            # Destrói as outras tropas atacantes (elas se fundem na tropa líder)
-            for tropa in lista_de_atacantes[1:]:
-                tropa.dono.tropas.remove(tropa)
-
             if cidade.dono is None:
-                self._resolver_combate_neutro(cidade, forca_total_atacante, tropa_lider)
+                self._resolver_combate_neutro(cidade, lista_de_atacantes)
             elif "base" in cidade.id:
                  self._resolver_combate_jogador(cidade, forca_total_atacante, tropa_lider, eh_base=True)
             else:
