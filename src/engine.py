@@ -661,16 +661,17 @@ class Jogo:
                         tropa.estado = "ociosa"
                         print(f"Tropa {tropa.id} chegou ao seu destino.")
                         cidade_atual = self.mapa.cidades[tropa.localizacao]
-                        if tropa not in cidade_atual.tropas_estacionadas:
-                            tropa.estado = "estacionada"
-                            cidade_atual.tropas_estacionadas.append(tropa)
-                            print(
-                                f"Tropa {tropa.id} agora está estacionada em {tropa.localizacao}."
-                            )
-                        else:
-                            print(
-                                f"AVISO: Tropa {tropa.id} já está estacionada em {tropa.localizacao}."
-                            )
+                        if not tropa.fila_de_comandos:
+                            if tropa not in cidade_atual.tropas_estacionadas:
+                                tropa.estado = "estacionada"
+                                cidade_atual.tropas_estacionadas.append(tropa)
+                                print(
+                                    f"Tropa {tropa.id} agora está estacionada em {tropa.localizacao}."
+                                )
+                            else:
+                                print(
+                                    f"AVISO: Tropa {tropa.id} já está estacionada em {tropa.localizacao}."
+                                )
 
             # Lógica para tropas ociosas que têm novos comandos para executar
             elif tropa.estado == "ociosa" and tropa.fila_de_comandos:
