@@ -82,8 +82,8 @@ class Grafo:
         camadas: list[int] = None,
         seed: int = None,
         num_jogadores: int = 2,
-        largura: int = 800,
-        altura: int = 800,
+        largura: int = 1920,
+        altura: int = 1080,
     ):
         """
         Gera um grafo com base nos parâmetros fornecidos.
@@ -345,7 +345,7 @@ def exportar_mapa_para_json(grafo, nome_arquivo):
         "lista_adjacencia": [],
     }
     for cidade_id, info in cidades_geradas.items():
-        nova_cidade = {"id": cidade_id, "populacao": info["pop"]}
+        nova_cidade = {"id": cidade_id, "populacao": info["pop"], "pos": info["pos"]}
         mapa_para_json["cidades"].append(nova_cidade)
     for origem_id, destino_id, peso in arestas_geradas:
         nova_aresta = {"de": origem_id, "para": destino_id, "peso": peso}
