@@ -7,7 +7,7 @@ from collections import deque
 class Cidade:
     """Representa uma cidade no mapa do jogo (apenas dados lógicos)."""
 
-    def __init__(self, id, populacao):
+    def __init__(self, id, populacao:int):
         self.id = id
         self.populacao = populacao
         self.dono = None
@@ -17,7 +17,7 @@ class Cidade:
 class Tropa:
     """Representa uma tropa no jogo."""
 
-    def __init__(self, id, dono, forca, fila_de_comandos=None):
+    def __init__(self, id, dono, forca:int, fila_de_comandos=None):
         self.id = id
         self.dono = dono
         self.forca = forca
@@ -103,28 +103,43 @@ class Mapa:
         vizinhos = [vizinho for vizinho, _ in self.lista_adjacencia.get(cidade_id, [])]
         return vizinhos
 
-    def encontrar_caminho_bfs(self, inicio_id, fim_id):
-        """Encontra o caminho mais curto entre duas cidades usando BFS."""
-        if inicio_id == fim_id:
-            return [inicio_id]
-        fila = deque([[inicio_id]])
-        visitados = {inicio_id}
+    def encontrar_caminho(self, origem_id, destino_id, jogador_id=None):
+        """
+        Encontra um caminho seguro entre duas cidades considerando o dono.
+        - Só atravessa cidades do jogador ou o destino final.
+        - Usa BFS para retornar o menor caminho válido.
+        """
+        if origem_id not in self.cidades or destino_id not in self.cidades:
+            print("Origem ou destino inválido.")
+            return None
+
+        fila = deque([[origem_id]])  # fila guarda caminhos
+        visitados = set([origem_id])
+
         while fila:
             caminho = fila.popleft()
-            ultimo_no = caminho[-1]
-            if ultimo_no == fim_id:
+            atual = caminho[-1]
+
+            # Verifica se chegou ao destino
+            if atual == destino_id:
                 return caminho
-            for vizinho in self.get_vizinhos(ultimo_no):
-                if vizinho not in visitados:
-                    visitados.add(vizinho)
-                    novo_caminho = list(caminho)
-                    novo_caminho.append(vizinho)
-                    fila.append(novo_caminho)
-        return None
+
+            # Explora vizinhos não visitados
+            for vizinho, _ in self.lista_adjacencia.get(atual, []):
+                if jogador_id:
+                    if self.cidades[vizinho].dono == jogador_id or vizinho == destino_id:
+                        if vizinho not in visitados:
+                            visitados.add(vizinho)
+                            fila.append(caminho + [vizinho])
+                else:
+                    if vizinho not in visitados:
+                            visitados.add(vizinho)
+                            fila.append(caminho + [vizinho])
+        return None  # Nenhum caminho seguro encontrado
 
 
 class MapaSomenteLeitura:
-    def __init__(self, mapa):
+    def __init__(self, mapa: Mapa):
         self._mapa = mapa
 
     def get_vizinhos(self, cidade_id):
@@ -140,7 +155,7 @@ class MapaSomenteLeitura:
         return self._mapa.lista_adjacencia
 
     def encontrar_caminho_bfs(self, inicio_id, fim_id):
-        return self._mapa.encontrar_caminho_bfs(inicio_id, fim_id)
+        return self._mapa.encontrar_caminho(inicio_id, fim_id)
 
 
 class Jogo:
@@ -331,8 +346,8 @@ class Jogo:
         tropa.caminho_atual.clear()
 
         # Calcula o novo caminho de volta para a base
-        caminho_de_volta = self.mapa.encontrar_caminho_bfs(
-            tropa.localizacao, tropa.dono.id_base
+        caminho_de_volta = self.mapa.encontrar_caminho(
+            tropa.localizacao, tropa.dono.id_base, tropa.dono.id
         )
 
         if caminho_de_volta:
@@ -348,38 +363,35 @@ class Jogo:
                 f"ALERTA: Tropa {tropa.id} está encurralada em {tropa.localizacao} e não pode recuar!"
             )
 
-    def _calcular_mst_prim(self, jogador):
+    def _calcular_mst_prim(self, jogador: Jogador):
         """
         Calcula a Árvore Geradora Mínima (MST) que conecta as cidades de um jogador,
         usando o Algoritmo de Prim. Retorna o custo total da manutenção e o
         conjunto de cidades que estão efetivamente conectadas à base.
         """
-        mapa = self.mapa
-        jogador_id = jogador.id
-        id_base = jogador.id_base
 
         # Copia todas as cidades do jogador, incluindo a base
         cidades_do_jogador = {
-            c.id for c in mapa.cidades.values() if c.dono == jogador_id
+            c.id for c in self.mapa.cidades.values() if c.dono == jogador.id
         }
-        cidades_do_jogador.add(id_base)
+        cidades_do_jogador.add(jogador.id_base)
 
         if len(cidades_do_jogador) <= 1:
             return 0, cidades_do_jogador
 
         custo_total = 0
-        cidades_conectadas = {id_base}
+        cidades_conectadas = {jogador.id_base}
         fronteira = []
 
         push = heapq.heappush
         pop = heapq.heappop
 
         # Pré-carrega vizinhos e arestas iniciais pra evitar lookup desnecessário
-        for vizinho_id in mapa.get_vizinhos(id_base):
+        for vizinho_id in self.mapa.get_vizinhos(jogador.id_base):
             if vizinho_id in cidades_do_jogador:
-                aresta = mapa.get_aresta(id_base, vizinho_id)
+                aresta = self.mapa.get_aresta(jogador.id_base, vizinho_id)
                 if aresta:
-                    push(fronteira, (aresta.peso, id_base, vizinho_id))
+                    push(fronteira, (aresta.peso, jogador.id_base, vizinho_id))
 
         while fronteira and len(cidades_conectadas) < len(cidades_do_jogador):
             peso, _, destino = pop(fronteira)
@@ -390,12 +402,12 @@ class Jogo:
             cidades_conectadas.add(destino)
             custo_total += peso
 
-            for vizinho_id in mapa.get_vizinhos(destino):
+            for vizinho_id in self.mapa.get_vizinhos(destino):
                 if (
                     vizinho_id in cidades_do_jogador
                     and vizinho_id not in cidades_conectadas
                 ):
-                    aresta = mapa.get_aresta(destino, vizinho_id)
+                    aresta = self.mapa.get_aresta(destino, vizinho_id)
                     if aresta:
                         push(fronteira, (aresta.peso, destino, vizinho_id))
 
@@ -478,40 +490,46 @@ class Jogo:
         """Resolve o combate contra uma cidade ocupada por outro jogador ou uma base."""
         tropas_por_destino = {}
         tropas_retornadas = []
-        
+
         for tropa in list(lista_de_atacantes):  # Lista de todas as tropas do jogador
-            aresta_destino = self.mapa.get_aresta(cidade.id, tropa.localizacao)   # Próximo passo planejado
+            aresta_destino = self.mapa.get_aresta(
+                cidade.id, tropa.localizacao
+            )  # Próximo passo planejado
             if aresta_destino is not None:
                 if aresta_destino not in tropas_por_destino:
                     tropas_por_destino[aresta_destino] = []
                 tropas_por_destino[aresta_destino].append(tropa)
-        
-        for tropa in list(lista_de_atacantes):       
+
+        for tropa in list(lista_de_atacantes):
             aresta = self.mapa.get_aresta(cidade.id, tropa.localizacao)
             tropas_no_mesmo_destino = tropas_por_destino[aresta]
             peso_total = sum(t.forca for t in tropas_no_mesmo_destino)
-            print(f"peso total de tropas no destino {cidade.id} por {tropa.localizacao}: {peso_total}")
+            print(
+                f"peso total de tropas no destino {cidade.id} por {tropa.localizacao}: {peso_total}"
+            )
             print(f"peso da aresta: {aresta.peso}")
             if peso_total > aresta.peso:
                 tropas_retornadas.append(tropa)
                 self._iniciar_recuo_forcado(
                     tropa, f"muitas tropas indo de {tropa.localizacao} para {cidade.id}"
                 )
-        
+
         for tropa in tropas_retornadas:
             lista_de_atacantes.remove(tropa)
-        
+
         jogadores_atacantes = {}
-        
+
         for tropa in lista_de_atacantes:
             if tropa.dono.id not in jogadores_atacantes:
                 jogadores_atacantes[tropa.dono.id] = []
             jogadores_atacantes[tropa.dono.id].append(tropa)
 
         if not jogadores_atacantes:
-            print(f"Nenhum atacante válido em {cidade.id}. Nenhum combate será realizado.")
+            print(
+                f"Nenhum atacante válido em {cidade.id}. Nenhum combate será realizado."
+            )
             return
-        
+
         ordenado = sorted(
             jogadores_atacantes.items(),
             key=lambda item: sum(t.forca for t in item[1]),
@@ -646,7 +664,6 @@ class Jogo:
         """Processa os movimentos e comandos de todas as tropas de um jogador."""
 
         for tropa in list(jogador.tropas):
-            
 
             # Lógica para tropas ociosas que têm novos comandos para executar
             if tropa.estado == "ociosa" and tropa.fila_de_comandos:
@@ -662,7 +679,7 @@ class Jogo:
                     print(
                         f"Tropa {tropa.id} iniciando movimento de {tropa.localizacao} para {destino_final}"
                     )
-                    caminho = self.mapa.encontrar_caminho_bfs(
+                    caminho = self.mapa.encontrar_caminho(
                         tropa.localizacao, destino_final
                     )
                     if caminho and len(caminho) > 1:
@@ -722,17 +739,19 @@ class Jogo:
                         f"Tropa {tropa.id} iniciando recuo voluntário de {tropa.localizacao}."
                     )
                     self._iniciar_recuo_forcado(tropa, "ordem de recuo do jogador")
-            
+
         tropas_por_destino = {}
-        
+
         for tropa in list(jogador.tropas):  # Lista de todas as tropas do jogador
             if tropa.caminho_atual and tropa.estado == "movendo":
-                aresta_destino = self.mapa.get_aresta(tropa.caminho_atual[0],tropa.localizacao)   # Próximo passo planejado
+                aresta_destino = self.mapa.get_aresta(
+                    tropa.caminho_atual[0], tropa.localizacao
+                )  # Próximo passo planejado
                 if aresta_destino is not None:
                     if aresta_destino not in tropas_por_destino:
                         tropas_por_destino[aresta_destino] = []
                     tropas_por_destino[aresta_destino].append(tropa)
-                    
+
         for tropa in list(jogador.tropas):
             # Lógica de movimento para tropas que já estão em um caminho
             if tropa.estado in ["movendo", "recuando"]:
@@ -753,18 +772,24 @@ class Jogo:
                         )
                         continue
 
-                
                     if tropa.estado == "movendo":
-                        print(f"tropa localizacao: {tropa.localizacao} proximo passo: {proximo_passo}")
+                        print(
+                            f"tropa localizacao: {tropa.localizacao} proximo passo: {proximo_passo}"
+                        )
                         print(f"tropas no destino: {tropas_por_destino}")
-                        tropas_no_mesmo_destino = tropas_por_destino[self.mapa.get_aresta(tropa.localizacao, proximo_passo)]
+                        tropas_no_mesmo_destino = tropas_por_destino[
+                            self.mapa.get_aresta(tropa.localizacao, proximo_passo)
+                        ]
                         peso_total = sum(t.forca for t in tropas_no_mesmo_destino)
-                        print(f"peso total de tropas no destino {cidade_destino.id} por {tropa.localizacao}: {peso_total}")
+                        print(
+                            f"peso total de tropas no destino {cidade_destino.id} por {tropa.localizacao}: {peso_total}"
+                        )
                         print(f"peso da aresta: {aresta.peso}")
-                        
+
                         if peso_total > aresta.peso:
                             self._iniciar_recuo_forcado(
-                                tropa, f"muitas tropas indo de {tropa.localizacao} para {proximo_passo}"
+                                tropa,
+                                f"muitas tropas indo de {tropa.localizacao} para {proximo_passo}",
                             )
                             continue
 
@@ -799,7 +824,6 @@ class Jogo:
                                 print(
                                     f"AVISO: Tropa {tropa.id} já está estacionada em {tropa.localizacao}."
                                 )
-                                
 
     def _processar_movimento_transporte(self, jogador):
         """Processa o movimento e os comandos do transporte de um jogador."""
@@ -825,8 +849,8 @@ class Jogo:
                     f"Transporte de {jogador.id} iniciando missão: coletar em {origem_coleta} e levar para {destino_final}."
                 )
 
-                caminho = self.mapa.encontrar_caminho_bfs(
-                    transporte.localizacao, origem_coleta
+                caminho = self.mapa.encontrar_caminho(
+                    transporte.localizacao, origem_coleta,jogador_id= jogador.id
                 )
                 if caminho and len(caminho) > 1:
                     transporte.caminho_atual = caminho[1:]
@@ -899,8 +923,8 @@ class Jogo:
                         # Pega o destino do comando de ENTREGAR (que agora é o primeiro)
                         destino_final = comando_entrega["alvo"]
 
-                        caminho = self.mapa.encontrar_caminho_bfs(
-                            transporte.localizacao, destino_final
+                        caminho = self.mapa.encontrar_caminho(
+                            transporte.localizacao, destino_final, jogador_id=jogador.id
                         )
                         if caminho and len(caminho) > 1:
                             transporte.caminho_atual = caminho[1:]
@@ -942,7 +966,7 @@ class Jogo:
             f"Transporte de {transporte.dono.id} iniciando retorno à base. Motivo: {motivo}"
         )
         transporte.fila_de_comandos.clear()
-        caminho_de_volta = self.mapa.encontrar_caminho_bfs(
+        caminho_de_volta = self.mapa.encontrar_caminho(
             transporte.localizacao, transporte.dono.id_base
         )
         if caminho_de_volta and len(caminho_de_volta) > 1:
