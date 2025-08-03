@@ -113,6 +113,9 @@ class Mapa:
             print("Origem ou destino inválido.")
             return None
 
+        if origem_id == destino_id:
+            return [origem_id,origem_id]  # Retorna o próprio caminho se origem e destino forem iguais
+        
         fila = deque([[origem_id]])  # fila guarda caminhos
         visitados = set([origem_id])
 
@@ -776,19 +779,12 @@ class Jogo:
                         )
                         continue
 
-                    if tropa.estado == "movendo":
-                        print(
-                            f"tropa localizacao: {tropa.localizacao} proximo passo: {proximo_passo}"
-                        )
-                        print(f"tropas no destino: {tropas_por_destino}")
+                    if tropa.estado == "movendo" and not tropa.localizacao == proximo_passo:
+
                         tropas_no_mesmo_destino = tropas_por_destino[
                             self.mapa.get_aresta(tropa.localizacao, proximo_passo)
                         ]
                         peso_total = sum(t.forca for t in tropas_no_mesmo_destino)
-                        print(
-                            f"peso total de tropas no destino {cidade_destino.id} por {tropa.localizacao}: {peso_total}"
-                        )
-                        print(f"peso da aresta: {aresta.peso}")
 
                         if peso_total > aresta.peso:
                             self._iniciar_recuo_forcado(
@@ -875,7 +871,7 @@ class Jogo:
                 cidade_destino = self.mapa.cidades[proximo_passo]
                 if cidade_destino.dono != jogador.id:
                     if cidade_destino.dono is None:  # Neutra
-                        perda = transporte.carga_populacao * 0.1
+                        perda = transporte.carga_populacao // 10
                         cidade_destino.populacao += perda
                         transporte.carga_populacao -= perda
                         print(
