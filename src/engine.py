@@ -23,6 +23,9 @@ class Tropa:
         self.estado = 'ociosa'
         self.caminho_atual = []
         self.alvo_de_ataque = None # Para guardar o alvo do comando ATACAR
+    
+    def __repr__(self):
+        return f"{self.id}"
 
 class Transporte:
     """Representa o transporte de um jogador, que serve para mover população entre cidades
@@ -399,78 +402,80 @@ class Jogo:
                 # Remove todas as tropas do jogador
                 jogador.tropas.clear()
 
-    def _resolver_combate_neutro(self, cidade, lista_de_atacantes):
-        """Resolve o combate contra uma cidade neutra. As regras são diferentes de um combate normal."""
-        
-        forca_total_atacante = sum(tropa.forca for tropa in lista_de_atacantes)        
-        defesa_total = cidade.populacao
-        print(f"Tentativa de conquista em {cidade.id} (Neutra): Força da Tropa({forca_total_atacante}) vs População({defesa_total})")
-
-        # Sucesso: A força do atacante deve ser maior ou igual à população.
-        if forca_total_atacante >= defesa_total:
-            print(f"Vitória! Jogador {lista_de_atacantes[0].dono.id} conquistou {cidade.id}!")
-            # A cidade assume novo dono
-            cidade.dono = lista_de_atacantes[0].dono.id
-            # Muda o estado para tratar na Etapa 4
-            for tropa in lista_de_atacantes:
-                tropa.estado = 'vitoriosa'
-                tropa.localizacao = cidade.id  # Atualiza a localização da tropa
-
-        # Falha: A força do atacante é insuficiente.
-        else:
-            if len(lista_de_atacantes) > 1:
-                print(f"Falha na conquista! A força das Tropas {lista_de_atacantes} ({forca_total_atacante}) é insuficiente para dominar {cidade.id}.")
-                for tropa in lista_de_atacantes:
-                    self._iniciar_recuo_forcado(tropa, f"força insuficiente para conquistar a cidade neutra {cidade.id}")
-            else:
-                print(f"Falha na conquista! A força da Tropa {lista_de_atacantes[0]} ({forca_total_atacante}) é insuficiente para dominar {cidade.id}.")
-                self._iniciar_recuo_forcado(lista_de_atacantes[0], f"força insuficiente para conquistar a cidade neutra {cidade.id}")
-   
-    def _resolver_combate_jogador(self, cidade, forca_total_atacante, tropa_atacante_lider, eh_base=False):
+    def _resolver_combate(self, cidade, lista_de_atacantes, eh_base=False):
         """Resolve o combate contra uma cidade ocupada por outro jogador ou uma base."""
-        defensores = list(cidade.tropas_estacionadas)
-        defesa_total = sum(t.forca for t in defensores)
+        jogadores_atacantes = {}
+        for tropa in lista_de_atacantes:
+            if tropa.dono.id not in jogadores_atacantes:
+                jogadores_atacantes[tropa.dono.id] = []
+            jogadores_atacantes[tropa.dono.id].append(tropa)
         
-        # A defesa da base inclui sua população
-        if eh_base:
-            defesa_total += cidade.populacao
+        ordenado = sorted(
+            jogadores_atacantes.items(),
+            key=lambda item: sum(t.forca for t in item[1]),
+            reverse=True
+        )
+        
+        vitorioso = ordenado[0][0]  # O jogador com a maior força total
+        tropas_perdidas = 0
+        
+        if len(ordenado) > 1:
+            _, segunda_maior = ordenado[1]
+            tropas_perdidas = sum(t.forca for t in segunda_maior)
+            for jogador, tropas in ordenado[1:]:
+                for tropa in tropas:
+                    tropa.dono.tropas.remove(tropa)
+                    if tropa in cidade.tropas_estacionadas:
+                        cidade.tropas_estacionadas.remove(tropa)
+        
+        tropas_vitoriosas = ordenado[0][1]
+        tropas_destruídas = []
+        
+        for t in tropas_vitoriosas:
+            if t.forca - tropas_perdidas <= 0:
+                print(f"Tropa {t.id} do jogador {t.dono.id} foi destruída no combate!")
+                t.dono.tropas.remove(t)
+                tropas_destruídas.append(t)
+                if tropa in cidade.tropas_estacionadas:
+                        cidade.tropas_estacionadas.remove(tropa)
+            if t.forca - tropas_perdidas > 0:
+                for y in t.dono.tropas:
+                    if y.id == t.id:
+                        y.forca -= tropas_perdidas
+            tropas_perdidas -= t.forca
+            if tropas_perdidas <= 0:
+                break
 
-        forca_ataque_efetiva = forca_total_atacante
+        for tropa in tropas_destruídas:
+            if tropa in tropas_vitoriosas:
+                tropas_vitoriosas.remove(tropa)
+
+        forca_restante = sum(t.forca for t in tropas_vitoriosas)
         # A penalidade de 50% só se aplica ao atacar a base
         if eh_base:
-            forca_ataque_efetiva *= 0.5
-            print(f"Ataque à base! Força de ataque reduzida para {forca_ataque_efetiva}.")
+            forca_restante *= 0.5
+            print(f"Ataque à base! Força de ataque reduzida para {forca_restante}.")
 
-        print(f"Combate em {cidade.id}: Ataque({forca_ataque_efetiva}) vs Defesa({defesa_total})")
+        print(f"Combate em {cidade.id}: Ataque({forca_restante}) vs Defesa({cidade.populacao})")
 
-        if forca_ataque_efetiva > defesa_total: # Vitória do atacante
-            print(f"Vitória do jogador {tropa_atacante_lider.dono.id} em {cidade.id}!")
-            # Remove todas as tropas defensoras
-            for tropa_defensora in defensores:
-                if tropa_defensora in tropa_defensora.dono.tropas:
-                    tropa_defensora.dono.tropas.remove(tropa_defensora)
-            cidade.tropas_estacionadas.clear()
-            
-            cidade.dono = tropa_atacante_lider.dono.id
-            tropa_atacante_lider.forca -= defesa_total # Atacante perde força igual à defesa
-            tropa_atacante_lider.estado = 'vitoriosa'
-            tropa_atacante_lider.localizacao = cidade.id  # Atualiza a localização da tropa
+        if forca_restante >= cidade.populacao: # Vitória do atacante
+            print(f"Vitória do jogador {vitorioso} em {cidade.id}!")
+
+            cidade.dono = vitorioso
+            for tropas in tropas_vitoriosas:
+                tropas.estado = 'vitoriosa'
+                tropas.localizacao = cidade.id  # Atualiza a localização da tropa
 
         else: # Vitória do defensor
-            print(f"Defensores de {cidade.dono} venceram o ataque em {cidade.id}!")
-            # Remove a tropa atacante
-            tropa_atacante_lider.dono.tropas.remove(tropa_atacante_lider)
-            
-            # Defensores perdem força
-            dano_sofrido = forca_ataque_efetiva
-            for tropa_defensora in defensores:
-                if dano_sofrido <= 0: break
-                perda = min(tropa_defensora.forca, dano_sofrido)
-                tropa_defensora.forca -= perda
-                dano_sofrido -= perda
-            
-            # Remove tropas defensoras que foram destruídas
-            cidade.tropas_estacionadas[:] = [t for t in defensores if t.forca > 0]
+            print(f"Defensores de {cidade.id} venceram o ataque em {cidade.id}!")
+
+            if len(tropas_vitoriosas) > 1:
+                print(f"Falha na conquista! A força das Tropas {tropas_vitoriosas} ({forca_restante}) é insuficiente para dominar {cidade.id}.")
+                for tropa in tropas_vitoriosas:
+                    self._iniciar_recuo_forcado(tropa, f"força insuficiente para conquistar a cidade {cidade.id}")
+            else:
+                print(f"Falha na conquista! A força da Tropa {tropas_vitoriosas[0]} ({forca_restante}) é insuficiente para dominar {cidade.id}.")
+                self._iniciar_recuo_forcado(tropas_vitoriosas[0], f"força insuficiente para conquistar a cidade {cidade.id}")
 
     def _executar_fase_de_combates(self):
         """Coleta todos os ataques do turno e os resolve."""
@@ -489,15 +494,11 @@ class Jogo:
         # 2. Resolve os combates cidade por cidade
         for cidade_id, lista_de_atacantes in ataques_por_cidade.items():
             cidade = self.mapa.cidades[cidade_id]
-            forca_total_atacante = sum(t.forca for t in lista_de_atacantes)
-            tropa_lider = lista_de_atacantes[0] # A primeira tropa lidera o ataque
 
-            if cidade.dono is None:
-                self._resolver_combate_neutro(cidade, lista_de_atacantes)
-            elif "base" in cidade.id:
-                 self._resolver_combate_jogador(cidade, forca_total_atacante, tropa_lider, eh_base=True)
+            if "base" in cidade.id:
+                self._resolver_combate(cidade, lista_de_atacantes, eh_base=True)
             else:
-                self._resolver_combate_jogador(cidade, forca_total_atacante, tropa_lider)
+                self._resolver_combate(cidade, lista_de_atacantes)
 
     def _executar_fase_pos_combate(self):
         """Processa as ações das tropas vitoriosas."""
