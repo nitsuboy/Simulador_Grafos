@@ -57,7 +57,7 @@ class Jogador:
         self.id = id
         self.id_base = id_base
         self.tropas = []
-        self.tropas_na_base = 100
+        self.tropas_na_base = 500
         self.transporte = Transporte(self)  # Cada jogador tem um transporte associado
 
 
@@ -615,7 +615,19 @@ class Jogo:
     def _processar_movimento_tropas(self, jogador):
         """Processa os movimentos e comandos de todas as tropas de um jogador."""
         # Iterar sobre uma cópia da lista é mais seguro
+        tropas_por_destino = {}
+        
+        for tropa in list(jogador.tropas):  # Lista de todas as tropas do jogador
+            if tropa.caminho_atual and tropa.estado == "movendo":
+                destino = tropa.caminho_atual[0]  # Próximo passo planejado
+                if destino not in tropas_por_destino:
+                    tropas_por_destino[destino] = []
+                tropas_por_destino[destino].append(tropa)
+        
+        print(f"tropas por destino: {tropas_por_destino}")
+        
         for tropa in list(jogador.tropas):
+            
             # Lógica de movimento para tropas que já estão em um caminho
             if tropa.estado in ["movendo", "recuando"]:
                 if tropa.caminho_atual:
@@ -635,11 +647,19 @@ class Jogo:
                         )
                         continue
 
-                    if tropa.estado == "movendo" and tropa.forca > aresta.peso:
-                        self._iniciar_recuo_forcado(
-                            tropa, f"é muito grande para a aresta para {proximo_passo}"
-                        )
-                        continue
+                
+                    if tropa.estado == "movendo":
+                        
+                        tropas_no_mesmo_destino = tropas_por_destino[cidade_destino.id]
+                        peso_total = sum(t.forca for t in tropas_no_mesmo_destino)
+                        print(f"peso total de tropas no destino {cidade_destino.id}: {peso_total}")
+                        print(f"peso da aresta: {aresta.peso}")
+                        
+                        if peso_total > aresta.peso:
+                            self._iniciar_recuo_forcado(
+                                tropa, f"muitas tropas indo de {tropa.localizacao} para {proximo_passo}"
+                            )
+                            continue
 
                     tropa.localizacao = proximo_passo
                     print(
