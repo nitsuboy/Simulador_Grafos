@@ -7,83 +7,163 @@
   "cidades": [
     {
       "id": "basej_0",
-      "populacao": 100
+      "populacao": 100,
+      "pos": [
+        25.0,
+        540.0
+      ]
     },
     {
       "id": "basej_1",
-      "populacao": 100
+      "populacao": 100,
+      "pos": [
+        1895.0,
+        539.9999999999999
+      ]
     },
     {
       "id": "c1_0",
-      "populacao": 114
+      "populacao": 114,
+      "pos": [
+        265.0,
+        366.0
+      ]
     },
     {
       "id": "c2_0",
-      "populacao": 99
+      "populacao": 99,
+      "pos": [
+        265.0,
+        482.0
+      ]
     },
     {
       "id": "c3_0",
-      "populacao": 103
+      "populacao": 103,
+      "pos": [
+        265.0,
+        598.0
+      ]
     },
     {
       "id": "c4_0",
-      "populacao": 85
+      "populacao": 85,
+      "pos": [
+        265.0,
+        714.0
+      ]
     },
     {
       "id": "c5_0",
-      "populacao": 545
+      "populacao": 545,
+      "pos": [
+        505.0,
+        443.0
+      ]
     },
     {
       "id": "c6_0",
-      "populacao": 359
+      "populacao": 359,
+      "pos": [
+        505.0,
+        636.0
+      ]
     },
     {
       "id": "c7_0",
-      "populacao": 1036
+      "populacao": 1036,
+      "pos": [
+        745.0,
+        395.0
+      ]
     },
     {
       "id": "c8_0",
-      "populacao": 1157
+      "populacao": 1157,
+      "pos": [
+        745.0,
+        540.0
+      ]
     },
     {
       "id": "c9_0",
-      "populacao": 778
+      "populacao": 778,
+      "pos": [
+        745.0,
+        685.0
+      ]
     },
     {
       "id": "c1_1",
-      "populacao": 114
+      "populacao": 114,
+      "pos": [
+        1655.0,
+        713.9999999999999
+      ]
     },
     {
       "id": "c2_1",
-      "populacao": 99
+      "populacao": 99,
+      "pos": [
+        1655.0,
+        597.9999999999999
+      ]
     },
     {
       "id": "c3_1",
-      "populacao": 103
+      "populacao": 103,
+      "pos": [
+        1655.0,
+        481.9999999999999
+      ]
     },
     {
       "id": "c4_1",
-      "populacao": 85
+      "populacao": 85,
+      "pos": [
+        1655.0,
+        365.9999999999999
+      ]
     },
     {
       "id": "c5_1",
-      "populacao": 545
+      "populacao": 545,
+      "pos": [
+        1415.0,
+        637.0
+      ]
     },
     {
       "id": "c6_1",
-      "populacao": 359
+      "populacao": 359,
+      "pos": [
+        1415.0,
+        444.0
+      ]
     },
     {
       "id": "c7_1",
-      "populacao": 1036
+      "populacao": 1036,
+      "pos": [
+        1175.0,
+        685.0
+      ]
     },
     {
       "id": "c8_1",
-      "populacao": 1157
+      "populacao": 1157,
+      "pos": [
+        1175.0,
+        540.0
+      ]
     },
     {
       "id": "c9_1",
-      "populacao": 778
+      "populacao": 778,
+      "pos": [
+        1175.0,
+        395.0
+      ]
     }
   ],
   "arestas": [

@@ -2,6 +2,7 @@ import pygame
 import gerador_tabuleiro
 import random
 import json
+import os
 
 # Inicializar Pygame
 pygame.init()
@@ -36,15 +37,20 @@ def desenhar_moeda(surface, base_color, center, radius_x, height):
     pygame.draw.ellipse(surface, borda_color, rect_topo, 2)
 
 def desenhar_hud(round_num):
-    # Desenhar botão de próxima rodada
-    pygame.draw.rect(screen, (0, 150, 0), next_round_button_rect)
-    pygame.draw.rect(screen, (255, 255, 255), next_round_button_rect, 2)
-    next_round_text = font.render("Próxima Rodada", True, (255, 255, 255))
-    screen.blit(next_round_text, (next_round_button_rect.centerx - next_round_text.get_width() // 2, next_round_button_rect.centery - next_round_text.get_height() // 2))
+    # Desenhar botões de navegação
+    pygame.draw.rect(screen, (0, 150, 0), left_arrow_rect)
+    pygame.draw.rect(screen, (255, 255, 255), left_arrow_rect, 2)
+    left_arrow_text = font.render("<", True, (255, 255, 255))
+    screen.blit(left_arrow_text, (left_arrow_rect.centerx - left_arrow_text.get_width() // 2, left_arrow_rect.centery - left_arrow_text.get_height() // 2))
+
+    pygame.draw.rect(screen, (0, 150, 0), right_arrow_rect)
+    pygame.draw.rect(screen, (255, 255, 255), right_arrow_rect, 2)
+    right_arrow_text = font.render(">", True, (255, 255, 255))
+    screen.blit(right_arrow_text, (right_arrow_rect.centerx - right_arrow_text.get_width() // 2, right_arrow_rect.centery - right_arrow_text.get_height() // 2))
 
     # Desenhar contador de rodada
     round_font = pygame.font.SysFont(None, 48)
-    round_text = round_font.render(f"Rodada: {round_num}", True, (255, 255, 255))
+    round_text = round_font.render(f"Turno: {round_num}", True, (255, 255, 255))
     screen.blit(round_text, (WIDTH - 220, 80))
 
 def desenhar_legenda(nomes_jogadores):
@@ -63,65 +69,69 @@ def desenhar_legenda(nomes_jogadores):
 
 game_data = {}
 
-def gerar_estado_jogo_json(cidades_orig, arestas_orig, turno_atual):
-    mapa_cidades =  [{ "id": nome, "populacao": info["pop"], "pos": info["pos"] } for nome, info in cidades_orig.items()]
-    mapa_arestas = [{ "de": de, "para": para, "peso": peso } for de, para, peso in arestas_orig]
-
-    cidades_nao_base = [c["id"] for c in mapa_cidades if "basej" not in c["id"]]
-    cidades_disponiveis = list(cidades_nao_base)
-
-    # Define cidades possuídas aleatoriamente
-    cidades_j0 = [c["id"] for c in mapa_cidades if cidades_orig[c["id"]].get("owner") == 0]
-    cidades_j1 = [c["id"] for c in mapa_cidades if cidades_orig[c["id"]].get("owner") == 1]
-    if len(cidades_disponiveis) >= 2:
-        dominadas_j0 = random.sample(cidades_disponiveis, k=min(2, len(cidades_disponiveis)))
-        cidades_j0.extend(dominadas_j0)
-        for c in dominadas_j0: cidades_disponiveis.remove(c)
+def carregar_mapa_do_json(caminho_json='mapa_debug.json'):
+    script_dir = os.path.dirname(__file__)
+    caminho_abs = os.path.join(script_dir, caminho_json)
+    with open(caminho_abs, 'r', encoding='utf-8') as f:
+        dados = json.load(f)
     
-    if len(cidades_disponiveis) >= 2:
-        dominadas_j1 = random.sample(cidades_disponiveis, k=min(2, len(cidades_disponiveis)))
-        cidades_j1.extend(dominadas_j1)
+    cidades_carregadas = {c['id']: {'pop': c['populacao'], 'pos': tuple(map(int, c['pos'])), 'owner': None} for c in dados['cidades']}
+    arestas_carregadas = [(a['de'], a['para'], a['peso']) for a in dados['arestas']]
 
-    # Gera tropas aleatórias em cidades possuídas (não na base)
-    tropas_em_campo = []
-    cidades_sem_base_j0 = [c for c in cidades_j0 if "basej" not in c]
-    if cidades_sem_base_j0:
-        cidade_tropa = random.choice(cidades_sem_base_j0)
-        tropas_em_campo.append({"id": f"tropa_j0_{turno_atual}", "dono": 0, "forca": random.randint(20, 80), "localizacao": cidade_tropa})
+    # Definir donos das bases
+    for cid in cidades_carregadas:
+        if 'basej_0' in cid:
+            cidades_carregadas[cid]['owner'] = 0
+        elif 'basej_1' in cid:
+            cidades_carregadas[cid]['owner'] = 1
+            
+    return cidades_carregadas, arestas_carregadas
 
-    cidades_sem_base_j1 = [c for c in cidades_j1 if "basej" not in c]
-    if cidades_sem_base_j1:
-        cidade_tropa = random.choice(cidades_sem_base_j1)
-        tropas_em_campo.append({"id": f"tropa_j1_{turno_atual}", "dono": 1, "forca": random.randint(20, 80), "localizacao": cidade_tropa})
 
-    return {
-        "turno_atual": turno_atual,
-        "mapa": {"cidades": mapa_cidades, "arestas": mapa_arestas},
-        "jogadores": [
-            {"id": "j0", "cidades_possuidas": list(set(cidades_j0))},
-            {"id": "j1", "cidades_possuidas": list(set(cidades_j1))}
-        ],
-        "tropas_em_campo": tropas_em_campo
-    }
+def draw_text_with_outline(surface, font, text, text_color, outline_color, pos, outline_width=1):
+    text_surface = font.render(text, True, text_color)
+    outline_surface = font.render(text, True, outline_color)
+    
+    # Desenha o contorno em várias posições
+    for dx in [-outline_width, outline_width]:
+        for dy in [-outline_width, outline_width]:
+            surface.blit(outline_surface, (pos[0] - text_surface.get_width() // 2 + dx, pos[1] - text_surface.get_height() // 2 + dy))
+    
+    # Desenha o texto principal por cima
+    surface.blit(text_surface, (pos[0] - text_surface.get_width() // 2, pos[1] - text_surface.get_height() // 2))
 
-def call_new_status():
+def carregar_estado_turno(turno):
     global game_data
-    if not cidades:
-        return
+    # Turno 0 é o mapa base, não carrega estado
+    if turno == 0:
+        game_data = {}
+        for cid in cidades:
+            if 'basej_0' in cid:
+                cidades[cid]['owner'] = 0
+            elif 'basej_1' in cid:
+                cidades[cid]['owner'] = 1
+            else:
+                cidades[cid]['owner'] = None
+        return True
 
-    # Gera o novo estado do jogo em JSON falso, vai ser puxado a partir do motor
-    game_data = gerar_estado_jogo_json(cidades, arestas, round_counter)
-
-    # Reseta donos
-    for nome in cidades:
-        cidades[nome]['owner'] = None
-
-    # Atualiza donos com base no JSON
-    for jogador in game_data['jogadores']:
-        player_id = int(jogador['id'].replace('j', ''))
-        for cidade_id in jogador['cidades_possuidas']:
+    caminho_estado = os.path.join(os.path.dirname(__file__), '..', 'estados', f'estado_turno_{turno}.json')
+    try:
+        with open(caminho_estado, 'r', encoding='utf-8') as f:
+            game_data = json.load(f)
+        
+        # Itera sobre as cidades no estado para definir o dono
+        for cidade_estado in game_data.get('mapa', {}).get('cidades', []):
+            cidade_id = cidade_estado['id']
             if cidade_id in cidades:
-                cidades[cidade_id]['owner'] = player_id
+                dono = cidade_estado.get('dono')
+                if dono is not None:
+                    cidades[cidade_id]['owner'] = int(dono)
+                else:
+                    cidades[cidade_id]['owner'] = None
+        return True
+    except FileNotFoundError:
+        print(f"Arquivo de estado para o turno {turno} não encontrado.")
+        return False
 
 # Variáveis de estado do jogo
 game_state = 'menu'
@@ -134,10 +144,13 @@ input_rects = [
 ]
 active_input = None
 start_button_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 80, 200, 50)
-next_round_button_rect = pygame.Rect(WIDTH - 220, 20, 200, 50)
+left_arrow_rect = pygame.Rect(WIDTH - 280, 20, 50, 50)
+right_arrow_rect = pygame.Rect(WIDTH - 220, 20, 50, 50)
 
 # Variáveis de Jogo
-round_counter = 1
+round_counter = 0
+max_turn = 9 # Baseado nos arquivos encontrados
+cidades, arestas = {}, []
 
 # Loop principal
 running = True
@@ -153,7 +166,8 @@ while running:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if start_button_rect.collidepoint(event.pos):
                     game_state = 'game'
-                    cidades, arestas, list_adj = gerador_tabuleiro.gerar_grafo(num_jogadores=len(player_names), largura=WIDTH, altura=HEIGHT)
+                    cidades, arestas = carregar_mapa_do_json()
+                    # No turno 0, não carregamos um estado, apenas o mapa base.
                 else:
                     # Ativar a caixa de texto clicada
                     clicked_on_input = False
@@ -191,11 +205,15 @@ while running:
     elif game_state == 'game':
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if next_round_button_rect.collidepoint(event.pos):
-                    round_counter += 1
-                    call_new_status()
-                elif botao_rect.collidepoint(event.pos):
-                    cidades, arestas, list_adj = gerador_tabuleiro.gerar_grafo(num_jogadores=len(player_names), largura=WIDTH, altura=HEIGHT)
+                if left_arrow_rect.collidepoint(event.pos):
+                    if round_counter > 0:
+                        round_counter -= 1
+                        carregar_estado_turno(round_counter)
+                elif right_arrow_rect.collidepoint(event.pos):
+                    if round_counter < max_turn:
+                        round_counter += 1
+                        carregar_estado_turno(round_counter)
+                
 
         if tile_image:
             tile_width, tile_height = tile_image.get_size()
@@ -240,11 +258,28 @@ while running:
                     dono_id = tropa['dono']
                     cor_tropa = (0, 100, 200) if dono_id == 0 else (200, 100, 0)
                     
-                    tropa_font = pygame.font.SysFont(None, 26)
-                    texto_tropa = tropa_font.render(str(forca), True, cor_tropa)
-                    texto_rect_tropa = texto_tropa.get_rect(center=(pos_cidade[0] + 25, pos_cidade[1] - 25))
-                    pygame.draw.circle(screen, cor_tropa, texto_rect_tropa.center, 12, 2) # Círculo em volta
-                    screen.blit(texto_tropa, texto_rect_tropa)
+                    tropa_font = pygame.font.SysFont(None, 24)
+                    text_color = (255, 255, 255)
+                    outline_color = (0, 0, 0)
+
+                    # Calcula a posição e a prende aos limites da tela
+                    x_pos = pos_cidade[0] + 30
+                    y_pos = pos_cidade[1] - 30
+
+                    text_width, text_height = tropa_font.size(str(forca))
+                    radius = max(text_width, text_height) // 2 + 4
+
+                    x_pos = max(radius, min(WIDTH - radius, x_pos))
+                    y_pos = max(radius, min(HEIGHT - radius, y_pos))
+                    
+                    pos_tropa = (x_pos, y_pos)
+
+                    # Desenha o círculo da tropa
+                    pygame.draw.circle(screen, cor_tropa, pos_tropa, radius)
+                    pygame.draw.circle(screen, outline_color, pos_tropa, radius, 2)
+
+                    # Desenha o texto com contorno
+                    draw_text_with_outline(screen, tropa_font, str(forca), text_color, outline_color, pos_tropa, 2)
 
         # 4. Desenhar os pesos das arestas
         if arestas:
@@ -253,9 +288,7 @@ while running:
                 pos_b = cidades[b]["pos"]
                 label_x = pos_a[0] * 0.8 + pos_b[0] * 0.2
                 label_y = pos_a[1] * 0.8 + pos_b[1] * 0.2
-                peso_texto = peso_font.render(str(p), True, (0, 0, 0))
-                texto_rect = peso_texto.get_rect(center=(label_x, label_y))
-                screen.blit(peso_texto, texto_rect)
+                draw_text_with_outline(screen, peso_font, str(p), (255, 255, 255), (0, 0, 0), (label_x, label_y))
 
         desenhar_legenda(player_names)
         desenhar_hud(round_counter)
