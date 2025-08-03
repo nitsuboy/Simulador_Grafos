@@ -7,7 +7,7 @@ from collections import deque
 class Cidade:
     """Representa uma cidade no mapa do jogo (apenas dados lógicos)."""
 
-    def __init__(self, id, populacao:int):
+    def __init__(self, id, populacao: int):
         self.id = id
         self.populacao = populacao
         self.dono = None
@@ -17,7 +17,7 @@ class Cidade:
 class Tropa:
     """Representa uma tropa no jogo."""
 
-    def __init__(self, id, dono, forca:int, fila_de_comandos=None):
+    def __init__(self, id, dono, forca: int, fila_de_comandos=None):
         self.id = id
         self.dono = dono
         self.forca = forca
@@ -127,14 +127,17 @@ class Mapa:
             # Explora vizinhos não visitados
             for vizinho, _ in self.lista_adjacencia.get(atual, []):
                 if jogador_id:
-                    if self.cidades[vizinho].dono == jogador_id or vizinho == destino_id:
+                    if (
+                        self.cidades[vizinho].dono == jogador_id
+                        or vizinho == destino_id
+                    ):
                         if vizinho not in visitados:
                             visitados.add(vizinho)
                             fila.append(caminho + [vizinho])
                 else:
                     if vizinho not in visitados:
-                            visitados.add(vizinho)
-                            fila.append(caminho + [vizinho])
+                        visitados.add(vizinho)
+                        fila.append(caminho + [vizinho])
         return None  # Nenhum caminho seguro encontrado
 
 
@@ -422,6 +425,7 @@ class Jogo:
             if jogador.id in self.jogadores_derrotados:
                 continue
 
+            self.mapa.cidades[f"basej_{jogador.id}"].populacao = jogador.tropas_na_base  # Garante que a base é do jogador
             # Calcula a MST e verifica a conectividade
             cidades_sem_tropas = []
 
@@ -850,7 +854,7 @@ class Jogo:
                 )
 
                 caminho = self.mapa.encontrar_caminho(
-                    transporte.localizacao, origem_coleta,jogador_id= jogador.id
+                    transporte.localizacao, origem_coleta, jogador_id=jogador.id
                 )
                 if caminho and len(caminho) > 1:
                     transporte.caminho_atual = caminho[1:]
