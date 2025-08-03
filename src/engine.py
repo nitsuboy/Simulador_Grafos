@@ -476,12 +476,42 @@ class Jogo:
 
     def _resolver_combate(self, cidade, lista_de_atacantes, eh_base=False):
         """Resolve o combate contra uma cidade ocupada por outro jogador ou uma base."""
+        tropas_por_destino = {}
+        tropas_retornadas = []
+        
+        for tropa in list(lista_de_atacantes):  # Lista de todas as tropas do jogador
+            aresta_destino = self.mapa.get_aresta(cidade.id, tropa.localizacao)   # Próximo passo planejado
+            if aresta_destino is not None:
+                if aresta_destino not in tropas_por_destino:
+                    tropas_por_destino[aresta_destino] = []
+                tropas_por_destino[aresta_destino].append(tropa)
+        
+        for tropa in list(lista_de_atacantes):       
+            aresta = self.mapa.get_aresta(cidade.id, tropa.localizacao)
+            tropas_no_mesmo_destino = tropas_por_destino[aresta]
+            peso_total = sum(t.forca for t in tropas_no_mesmo_destino)
+            print(f"peso total de tropas no destino {cidade.id} por {tropa.localizacao}: {peso_total}")
+            print(f"peso da aresta: {aresta.peso}")
+            if peso_total > aresta.peso:
+                tropas_retornadas.append(tropa)
+                self._iniciar_recuo_forcado(
+                    tropa, f"muitas tropas indo de {tropa.localizacao} para {cidade.id}"
+                )
+        
+        for tropa in tropas_retornadas:
+            lista_de_atacantes.remove(tropa)
+        
         jogadores_atacantes = {}
+        
         for tropa in lista_de_atacantes:
             if tropa.dono.id not in jogadores_atacantes:
                 jogadores_atacantes[tropa.dono.id] = []
             jogadores_atacantes[tropa.dono.id].append(tropa)
 
+        if not jogadores_atacantes:
+            print(f"Nenhum atacante válido em {cidade.id}. Nenhum combate será realizado.")
+            return
+        
         ordenado = sorted(
             jogadores_atacantes.items(),
             key=lambda item: sum(t.forca for t in item[1]),
@@ -494,7 +524,7 @@ class Jogo:
         if len(ordenado) > 1:
             _, segunda_maior = ordenado[1]
             tropas_perdidas = sum(t.forca for t in segunda_maior)
-            for jogador, tropas in ordenado[1:]:
+            for _, tropas in ordenado[1:]:
                 for tropa in tropas:
                     tropa.dono.tropas.remove(tropa)
                     if tropa in cidade.tropas_estacionadas:
@@ -614,87 +644,12 @@ class Jogo:
 
     def _processar_movimento_tropas(self, jogador):
         """Processa os movimentos e comandos de todas as tropas de um jogador."""
-        # Iterar sobre uma cópia da lista é mais seguro
-        tropas_por_destino = {}
-        
-        for tropa in list(jogador.tropas):  # Lista de todas as tropas do jogador
-            if tropa.caminho_atual and tropa.estado == "movendo":
-                destino = tropa.caminho_atual[0]  # Próximo passo planejado
-                if destino not in tropas_por_destino:
-                    tropas_por_destino[destino] = []
-                tropas_por_destino[destino].append(tropa)
-        
-        print(f"tropas por destino: {tropas_por_destino}")
-        
+
         for tropa in list(jogador.tropas):
             
-            # Lógica de movimento para tropas que já estão em um caminho
-            if tropa.estado in ["movendo", "recuando"]:
-                if tropa.caminho_atual:
-                    proximo_passo = tropa.caminho_atual.pop(0)
-
-                    aresta = self.mapa.get_aresta(tropa.localizacao, proximo_passo)
-                    cidade_destino = self.mapa.cidades[proximo_passo]
-
-                    # Validações de movimento...
-                    if (
-                        tropa.estado == "movendo"
-                        and cidade_destino.dono != jogador.id
-                        and cidade_destino.id != jogador.id_base
-                    ):
-                        self._iniciar_recuo_forcado(
-                            tropa, f"encontrou cidade inimiga/neutra em {proximo_passo}"
-                        )
-                        continue
-
-                
-                    if tropa.estado == "movendo":
-                        
-                        tropas_no_mesmo_destino = tropas_por_destino[cidade_destino.id]
-                        peso_total = sum(t.forca for t in tropas_no_mesmo_destino)
-                        print(f"peso total de tropas no destino {cidade_destino.id}: {peso_total}")
-                        print(f"peso da aresta: {aresta.peso}")
-                        
-                        if peso_total > aresta.peso:
-                            self._iniciar_recuo_forcado(
-                                tropa, f"muitas tropas indo de {tropa.localizacao} para {proximo_passo}"
-                            )
-                            continue
-
-                    tropa.localizacao = proximo_passo
-                    print(
-                        f"Tropa {tropa.id} ({tropa.estado}) moveu-se para {tropa.localizacao}"
-                    )
-
-                if not tropa.caminho_atual:
-                    # Verifica se a tropa recuou para a base
-                    if (
-                        tropa.estado == "recuando"
-                        and tropa.localizacao == jogador.id_base
-                    ):
-                        jogador.tropas_na_base += tropa.forca
-                        print(
-                            f"Tropa {tropa.id} retornou à base e foi convertida em tropas na base (+{tropa.forca})."
-                        )
-                        jogador.tropas.remove(tropa)
-                    else:
-                        tropa.estado = "ociosa"
-                        print(f"Tropa {tropa.id} chegou ao seu destino.")
-                        cidade_atual = self.mapa.cidades[tropa.localizacao]
-                        if not tropa.fila_de_comandos:
-                            if tropa not in cidade_atual.tropas_estacionadas:
-                                tropa.estado = "estacionada"
-                                cidade_atual.tropas_estacionadas.append(tropa)
-                                print(
-                                    f"Tropa {tropa.id} agora está estacionada em {tropa.localizacao}."
-                                )
-                            else:
-                                print(
-                                    f"AVISO: Tropa {tropa.id} já está estacionada em {tropa.localizacao}."
-                                )
 
             # Lógica para tropas ociosas que têm novos comandos para executar
-            elif tropa.estado == "ociosa" and tropa.fila_de_comandos:
+            if tropa.estado == "ociosa" and tropa.fila_de_comandos:
                 if tropa.estado == "estacionada":
                     cidade_atual = self.mapa.cidades[tropa.localizacao]
                     if tropa in cidade_atual.tropas_estacionadas:
@@ -767,6 +722,84 @@ class Jogo:
                         f"Tropa {tropa.id} iniciando recuo voluntário de {tropa.localizacao}."
                     )
                     self._iniciar_recuo_forcado(tropa, "ordem de recuo do jogador")
+            
+        tropas_por_destino = {}
+        
+        for tropa in list(jogador.tropas):  # Lista de todas as tropas do jogador
+            if tropa.caminho_atual and tropa.estado == "movendo":
+                aresta_destino = self.mapa.get_aresta(tropa.caminho_atual[0],tropa.localizacao)   # Próximo passo planejado
+                if aresta_destino is not None:
+                    if aresta_destino not in tropas_por_destino:
+                        tropas_por_destino[aresta_destino] = []
+                    tropas_por_destino[aresta_destino].append(tropa)
+                    
+        for tropa in list(jogador.tropas):
+            # Lógica de movimento para tropas que já estão em um caminho
+            if tropa.estado in ["movendo", "recuando"]:
+                if tropa.caminho_atual:
+                    proximo_passo = tropa.caminho_atual.pop(0)
+
+                    aresta = self.mapa.get_aresta(tropa.localizacao, proximo_passo)
+                    cidade_destino = self.mapa.cidades[proximo_passo]
+
+                    # Validações de movimento...
+                    if (
+                        tropa.estado == "movendo"
+                        and cidade_destino.dono != jogador.id
+                        and cidade_destino.id != jogador.id_base
+                    ):
+                        self._iniciar_recuo_forcado(
+                            tropa, f"encontrou cidade inimiga/neutra em {proximo_passo}"
+                        )
+                        continue
+
+                
+                    if tropa.estado == "movendo":
+                        print(f"tropa localizacao: {tropa.localizacao} proximo passo: {proximo_passo}")
+                        print(f"tropas no destino: {tropas_por_destino}")
+                        tropas_no_mesmo_destino = tropas_por_destino[self.mapa.get_aresta(tropa.localizacao, proximo_passo)]
+                        peso_total = sum(t.forca for t in tropas_no_mesmo_destino)
+                        print(f"peso total de tropas no destino {cidade_destino.id} por {tropa.localizacao}: {peso_total}")
+                        print(f"peso da aresta: {aresta.peso}")
+                        
+                        if peso_total > aresta.peso:
+                            self._iniciar_recuo_forcado(
+                                tropa, f"muitas tropas indo de {tropa.localizacao} para {proximo_passo}"
+                            )
+                            continue
+
+                    tropa.localizacao = proximo_passo
+                    print(
+                        f"Tropa {tropa.id} ({tropa.estado}) moveu-se para {tropa.localizacao}"
+                    )
+
+                if not tropa.caminho_atual:
+                    # Verifica se a tropa recuou para a base
+                    if (
+                        tropa.estado == "recuando"
+                        and tropa.localizacao == jogador.id_base
+                    ):
+                        jogador.tropas_na_base += tropa.forca
+                        print(
+                            f"Tropa {tropa.id} retornou à base e foi convertida em tropas na base (+{tropa.forca})."
+                        )
+                        jogador.tropas.remove(tropa)
+                    else:
+                        tropa.estado = "ociosa"
+                        print(f"Tropa {tropa.id} chegou ao seu destino.")
+                        cidade_atual = self.mapa.cidades[tropa.localizacao]
+                        if not tropa.fila_de_comandos:
+                            if tropa not in cidade_atual.tropas_estacionadas:
+                                tropa.estado = "estacionada"
+                                cidade_atual.tropas_estacionadas.append(tropa)
+                                print(
+                                    f"Tropa {tropa.id} agora está estacionada em {tropa.localizacao}."
+                                )
+                            else:
+                                print(
+                                    f"AVISO: Tropa {tropa.id} já está estacionada em {tropa.localizacao}."
+                                )
+                                
 
     def _processar_movimento_transporte(self, jogador):
         """Processa o movimento e os comandos do transporte de um jogador."""
