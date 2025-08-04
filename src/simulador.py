@@ -102,9 +102,8 @@ if __name__ == "__main__":
     base_path = os.path.join(os.path.dirname(__file__), '..', 'estados')
     log_file = open(os.path.join(base_path, 'log.log'), "w",encoding='utf-8')
     
-
-    sys.stdout = log_file    # Redireciona prints (stdout)
-    sys.stderr = log_file    # Redireciona erros (stderr)
+    #sys.stdout = log_file    # Redireciona prints (stdout)
+    #sys.stderr = log_file    # Redireciona erros (stderr)
     
     # Parâmetros de inicialização do simulador
     mapa_path = "src/mapa_debug.json" 
