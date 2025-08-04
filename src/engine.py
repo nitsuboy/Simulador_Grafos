@@ -441,23 +441,26 @@ class Jogo:
             cidades_possuidas_antes = {
                 c.id for c in self.mapa.cidades.values() if c.dono == jogador.id
             }
+            print(f"\njogador {jogador.id} possui as cidades: {cidades_possuidas_antes}")
             for cidade_id in cidades_possuidas_antes:
                 tropas_estacionadas = self.mapa.cidades[cidade_id].tropas_estacionadas
+                print(f"Cidade {cidade_id} do jogador {jogador.id} possui tropas estacionadas: {tropas_estacionadas}")
+                # Se a cidade tiver tropas estacionadas, não é
                 if tropas_estacionadas:
-                    break
+                    continue
                 cidades_sem_tropas.append(cidade_id)
                 for tropa in jogador.tropas:
                     if tropa.localizacao == cidade_id:
                         cidades_sem_tropas.remove(cidade_id)
                         break
-
+            print(f"Cidades sem tropas do jogador {jogador.id}: {cidades_sem_tropas} etapa 0\n")
             if f"basej_{jogador.id}" in cidades_sem_tropas:
                 cidades_sem_tropas.remove(f"basej_{jogador.id}")
-
+            print(f"Cidades sem tropas do jogador {jogador.id}: {cidades_sem_tropas} etapa 1\n")
             for cidade_id in cidades_sem_tropas:
                 self.mapa.cidades[cidade_id].dono = None  # Neutraliza a cidade
                 cidades_possuidas_antes.remove(cidade_id)
-
+            print(f"Cidades possuídas após neutralização: {cidades_possuidas_antes}\n")
             custo_total_manutencao, cidades_conectadas = self._calcular_mst_prim(
                 jogador
             )
@@ -548,21 +551,24 @@ class Jogo:
             key=lambda item: sum(t.forca for t in item[1]),
             reverse=True,
         )
+        print(f"Jogadores atacantes ordenados por força total: {ordenado}")
 
         vitorioso = ordenado[0][0]  # O jogador com a maior força total
         tropas_perdidas = 0
-
+        
         if len(ordenado) > 1:
             _, segunda_maior = ordenado[1]
             tropas_perdidas = sum(t.forca for t in segunda_maior)
             for _, tropas in ordenado[1:]:
                 for tropa in tropas:
+                    print(f"Tropa {tropa.id} do jogador {tropa.dono.id} foi destruída no combate!")
                     tropa.dono.tropas.remove(tropa)
                     if tropa in cidade.tropas_estacionadas:
                         cidade.tropas_estacionadas.remove(tropa)
 
         tropas_vitoriosas = ordenado[0][1]
         tropas_destruídas = []
+        
 
         for t in tropas_vitoriosas:
             if t.forca - tropas_perdidas <= 0:
@@ -583,7 +589,7 @@ class Jogo:
             if tropa in tropas_vitoriosas:
                 tropas_vitoriosas.remove(tropa)
 
-        forca_restante = sum(t.forca for t in tropas_vitoriosas)
+        forca_restante = max(sum(t.forca for t in tropas_vitoriosas), 0)
         # A penalidade de 50% só se aplica ao atacar a base
         if eh_base:
             forca_restante *= 0.5
@@ -611,6 +617,8 @@ class Jogo:
                 tropas.estado = "vitoriosa"
                 tropas.localizacao = cidade.id  # Atualiza a localização da tropa
 
+        elif forca_restante == 0:  # Empate ou derrota do atacante
+            print(f"Empate em {cidade.id}!, todos os atacantes foram destruídos.")
         else:  # Vitória do defensor
             print(f"Defensores de {cidade.id} venceram o ataque em {cidade.id}!")
 
@@ -636,7 +644,17 @@ class Jogo:
         """Coleta todos os ataques do turno e os resolve."""
         print("\n--- Fase de Resolução de Combates ---")
         ataques_por_cidade = {}
-
+        
+        # 0. reuni as tropas que estão reunindo na base
+        for jogador in self.jogadores.values():
+            for tropa in jogador.tropas:
+                if tropa.estado == "reunindo":
+                        jogador.tropas_na_base += tropa.forca
+                        print(
+                            f"Tropa {tropa.id} retornou à base e foi convertida em tropas na base (+{tropa.forca})."
+                        )
+                        jogador.tropas.remove(tropa)
+        
         # 1. Coleta e agrupa todos os ataques
         for jogador in self.jogadores.values():
             for tropa in jogador.tropas:
@@ -820,11 +838,7 @@ class Jogo:
                         tropa.estado == "recuando"
                         and tropa.localizacao == jogador.id_base
                     ):
-                        jogador.tropas_na_base += tropa.forca
-                        print(
-                            f"Tropa {tropa.id} retornou à base e foi convertida em tropas na base (+{tropa.forca})."
-                        )
-                        jogador.tropas.remove(tropa)
+                        tropa.estado = "reunindo"
                     else:
                         tropa.estado = "ociosa"
                         print(f"Tropa {tropa.id} chegou ao seu destino.")
@@ -1055,6 +1069,8 @@ class Jogo:
     def processar_turno(self):
         print(f"\n--- Processando Turno {self.turno_atual} ---")
 
+        self.gerar_estado_json(f"estado_turno_{self.turno_atual}_ac.json")
+        
         # Etapa 1: Processamento de comandos de tropas e transportes
         for jogador in self.jogadores.values():
             if jogador.id in self.jogadores_derrotados:
@@ -1066,6 +1082,8 @@ class Jogo:
             # Processa comandos de transporte
             self._processar_movimento_transporte(jogador)
 
+        self.gerar_estado_json(f"estado_turno_{self.turno_atual}_mc.json")
+        
         # Etapa 2: Resolução de combates
         if not self.jogadores_derrotados:  # Só executa se ainda houver jogadores ativos
             self._executar_fase_de_combates()
@@ -1082,5 +1100,5 @@ class Jogo:
             return
 
         # Se ainda houver jogadores ativos, incrementa o turno e salva o estado atual
-        self.gerar_estado_json(f"estado_turno_{self.turno_atual}.json")
+        self.gerar_estado_json(f"estado_turno_{self.turno_atual}_dc.json")
         self.turno_atual += 1
