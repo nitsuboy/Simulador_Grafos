@@ -594,7 +594,17 @@ class Jogo:
         )
 
         if forca_restante >= cidade.populacao:  # Vitória do atacante
-            print(f"Vitória do jogador {vitorioso} em {cidade.id}!")
+
+            # Se o ataque for contra a base inimiga, decreta a vitória DO jogador vencedor
+            if eh_base:
+                print(
+                    f"Jogador {vitorioso} conquistou a base do jogador {cidade.dono}!"
+                )
+                jogador_derrotado = self.jogadores[cidade.dono]
+                self.jogadores_derrotados.append(jogador_derrotado.id)
+                self.jogadores.pop(cidade.dono, None)
+            else:
+                print(f"Vitória do jogador {vitorioso} em {cidade.id}!")
 
             cidade.dono = vitorioso
             for tropas in tropas_vitoriosas:
