@@ -1,7 +1,10 @@
+import os
+import sys
 from engine import Jogo, Jogador, Tropa, Transporte 
 import parser 
 from ias.ia_interface import IAInterface
 from ias.ia_perseus import Perseus # Exemplo de import de uma IA personalizada
+from ias.ia_debug import Human # Exemplo de import de uma IA de debug
 
 class Simulador:
     def __init__(self, mapa_json_path, bots, turno_maximo=50):
@@ -19,7 +22,7 @@ class Simulador:
         
         # Cria os jogadores e instancia as IAs
         for i, (jogador_id, classe_ia) in enumerate(bots.items()):
-            base_id = f"basej_{i}" 
+            base_id = f"basej_{i}"
             
             jogador = Jogador(id=jogador_id, id_base=base_id)
             self.jogo.jogadores[jogador_id] = jogador
@@ -39,6 +42,11 @@ class Simulador:
             # Injeta ordens de novas tropas de forma segura
             for ordem_tropa in ordens.get("novas_tropas", []):
                 forca_desejada = ordem_tropa['forca']
+                index = next((i for i, obj in enumerate(jogador.tropas) if obj.id == ordem_tropa['id']), None)
+                if index is not None:
+                    jogador.tropas[index].fila_de_comandos.extend(ordem_tropa['comandos'])
+                    print(f"Jogador {jogador_id}: Tropa {ordem_tropa['id']} atualizada com novos comandos.")
+                    continue
                 if jogador.tropas_na_base >= forca_desejada:
                     jogador.tropas_na_base -= forca_desejada
                     nova_tropa = Tropa(
@@ -69,10 +77,11 @@ class Simulador:
             # Gera o estado do jogo (pode salvar, se necessário)
             estado_do_jogo_atual = self.jogo.gerar_estado_json(
                 f"estado_turno_{self.jogo.turno_atual}.json", 
-                salvar_arquivo=True # Mantenha True se desejar debugar estados intermediários
+                salvar_arquivo=False # Mantenha True se desejar debugar estados intermediários
             )
             
             # Coleta as ordens de todos os jogadores
+            print("\n--- Preparando Turno ---")
             ordens_parseadas = {}
             for jogador_id, ia_obj in self.ias.items():
                 if jogador_id not in self.jogo.jogadores_derrotados:
@@ -89,16 +98,24 @@ class Simulador:
 
 
 if __name__ == "__main__":
+
+    base_path = os.path.join(os.path.dirname(__file__), '..', 'estados')
+    log_file = open(os.path.join(base_path, 'log.log'), "w",encoding='utf-8')
+    
+
+    sys.stdout = log_file    # Redireciona prints (stdout)
+    sys.stderr = log_file    # Redireciona erros (stderr)
+    
     # Parâmetros de inicialização do simulador
     mapa_path = "src/mapa_debug.json" 
-    turno_maximo = 3  # Define o número máximo de turnos
-    
+    turno_maximo = 10  # Define o número máximo de turnos
     # Define as IAs competidoras
     bots = {
-        '0': Perseus,
-        '1': Perseus
+        '0': Human,
+        '1': Human
     }
 
     # Inicia a simulação
     simulador = Simulador(mapa_json_path=mapa_path, bots=bots, turno_maximo=turno_maximo)
     simulador.run()
+    log_file.close()

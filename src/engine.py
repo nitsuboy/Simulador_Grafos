@@ -57,7 +57,7 @@ class Jogador:
         self.id = id
         self.id_base = id_base
         self.tropas = []
-        self.tropas_na_base = 500
+        self.tropas_na_base = 100
         self.transporte = Transporte(self)  # Cada jogador tem um transporte associado
 
 
@@ -275,7 +275,6 @@ class Jogo:
             caminho_completo = os.path.join(diretorio, nome_arquivo)
             with open(caminho_completo, "w", encoding="utf-8") as f:
                 json.dump(estado_atual, f, indent=2)
-            print(f"Arquivo de estado '{caminho_completo}' gerado com sucesso.")
 
         return estado_atual
 
@@ -441,10 +440,8 @@ class Jogo:
             cidades_possuidas_antes = {
                 c.id for c in self.mapa.cidades.values() if c.dono == jogador.id
             }
-            print(f"\njogador {jogador.id} possui as cidades: {cidades_possuidas_antes}")
             for cidade_id in cidades_possuidas_antes:
                 tropas_estacionadas = self.mapa.cidades[cidade_id].tropas_estacionadas
-                print(f"Cidade {cidade_id} do jogador {jogador.id} possui tropas estacionadas: {tropas_estacionadas}")
                 # Se a cidade tiver tropas estacionadas, não é
                 if tropas_estacionadas:
                     continue
@@ -453,20 +450,13 @@ class Jogo:
                     if tropa.localizacao == cidade_id:
                         cidades_sem_tropas.remove(cidade_id)
                         break
-            print(f"Cidades sem tropas do jogador {jogador.id}: {cidades_sem_tropas} etapa 0\n")
             if f"basej_{jogador.id}" in cidades_sem_tropas:
                 cidades_sem_tropas.remove(f"basej_{jogador.id}")
-            print(f"Cidades sem tropas do jogador {jogador.id}: {cidades_sem_tropas} etapa 1\n")
             for cidade_id in cidades_sem_tropas:
                 self.mapa.cidades[cidade_id].dono = None  # Neutraliza a cidade
                 cidades_possuidas_antes.remove(cidade_id)
-            print(f"Cidades possuídas após neutralização: {cidades_possuidas_antes}\n")
             custo_total_manutencao, cidades_conectadas = self._calcular_mst_prim(
                 jogador
-            )
-
-            print(
-                f"Jogador {jogador.id}: Custo total de manutenção = {custo_total_manutencao} (Cidades conectadas: {cidades_conectadas})"
             )
             # Identifica e neutraliza cidades isoladas
             cidades_isoladas = cidades_possuidas_antes - cidades_conectadas
@@ -522,7 +512,6 @@ class Jogo:
             key=lambda item: sum(t.forca for t in item[1]),
             reverse=True,
         )
-        print(f"Jogadores atacantes ordenados por força total: {ordenado}")
 
         vitorioso = ordenado[0][0]  # O jogador com a maior força total
         tropas_perdidas = 0
