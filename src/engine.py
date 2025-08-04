@@ -504,35 +504,6 @@ class Jogo:
 
     def _resolver_combate(self, cidade, lista_de_atacantes, eh_base=False):
         """Resolve o combate contra uma cidade ocupada por outro jogador ou uma base."""
-        tropas_por_destino = {}
-        tropas_retornadas = []
-
-        for tropa in list(lista_de_atacantes):  # Lista de todas as tropas do jogador
-            aresta_destino = self.mapa.get_aresta(
-                cidade.id, tropa.localizacao
-            )  # Próximo passo planejado
-            if aresta_destino is not None:
-                if aresta_destino not in tropas_por_destino:
-                    tropas_por_destino[aresta_destino] = []
-                tropas_por_destino[aresta_destino].append(tropa)
-
-        for tropa in list(lista_de_atacantes):
-            aresta = self.mapa.get_aresta(cidade.id, tropa.localizacao)
-            tropas_no_mesmo_destino = tropas_por_destino[aresta]
-            peso_total = sum(t.forca for t in tropas_no_mesmo_destino)
-            print(
-                f"peso total de tropas no destino {cidade.id} por {tropa.localizacao}: {peso_total}"
-            )
-            print(f"peso da aresta: {aresta.peso}")
-            if peso_total > aresta.peso:
-                tropas_retornadas.append(tropa)
-                self._iniciar_recuo_forcado(
-                    tropa, f"muitas tropas indo de {tropa.localizacao} para {cidade.id}"
-                )
-
-        for tropa in tropas_retornadas:
-            lista_de_atacantes.remove(tropa)
-
         jogadores_atacantes = {}
 
         for tropa in lista_de_atacantes:
@@ -615,7 +586,6 @@ class Jogo:
             cidade.dono = vitorioso
             for tropas in tropas_vitoriosas:
                 tropas.estado = "vitoriosa"
-                tropas.localizacao = cidade.id  # Atualiza a localização da tropa
 
         elif forca_restante == 0:  # Empate ou derrota do atacante
             print(f"Empate em {cidade.id}!, todos os atacantes foram destruídos.")
@@ -784,17 +754,34 @@ class Jogo:
         tropas_por_destino = {}
 
         for tropa in list(jogador.tropas):  # Lista de todas as tropas do jogador
+            aresta_destino = None
+            
+            if tropa.estado == "atacando":
+                aresta_destino = self.mapa.get_aresta(
+                    tropa.alvo_de_ataque, tropa.localizacao
+                )  # Próximo passo planejado
             if tropa.caminho_atual and tropa.estado == "movendo":
                 aresta_destino = self.mapa.get_aresta(
                     tropa.caminho_atual[0], tropa.localizacao
                 )  # Próximo passo planejado
-                if aresta_destino is not None:
-                    if aresta_destino not in tropas_por_destino:
-                        tropas_por_destino[aresta_destino] = []
-                    tropas_por_destino[aresta_destino].append(tropa)
+            
+            if aresta_destino is not None:
+                if aresta_destino not in tropas_por_destino:
+                    tropas_por_destino[aresta_destino] = []
+                tropas_por_destino[aresta_destino].append(tropa)
 
         for tropa in list(jogador.tropas):
             # Lógica de movimento para tropas que já estão em um caminho
+            if tropa.estado in ["atacando"]:
+                aresta = self.mapa.get_aresta(tropa.alvo_de_ataque, tropa.localizacao)
+                tropas_no_mesmo_destino = tropas_por_destino[aresta]
+                peso_total = sum(t.forca for t in tropas_no_mesmo_destino)
+                if peso_total > aresta.peso:
+                    self._iniciar_recuo_forcado(
+                        tropa, f"muitas tropas indo de {tropa.localizacao} para {tropa.alvo_de_ataque}"
+                    )
+                else:
+                    tropa.localizacao = tropa.alvo_de_ataque
             if tropa.estado in ["movendo", "recuando"]:
                 if tropa.caminho_atual:
                     proximo_passo = tropa.caminho_atual.pop(0)
