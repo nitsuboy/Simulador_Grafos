@@ -37,7 +37,7 @@ class Grafo:
         """
         chave_aresta = tuple(sorted([no_a, no_b]))
         if chave_aresta not in self.conjunto_arestas:
-            self.arestas.append((no_a, no_b, peso))
+            self.arestas.append((*chave_aresta, peso))
             self.conjunto_arestas.add(chave_aresta)
 
     def arestas_para_lista_adjacencia_nao_direcionado(self):
@@ -288,13 +288,38 @@ class Grafo:
                         if par not in ja_escolhidas and peso > 0:
                             ja_escolhidas.add(par)
                             self.adicionar_aresta(nome_cidade, conexao, peso)
-
+            menorv = 1000
+            menorc = None
+            for c in regioes_jogadores[0][1]:
+                if self.nos[c]["pop"] < menorv:
+                    menorc = c
+                    menorv = self.nos[c]["pop"]
+            par = tuple(sorted([regioes_jogadores[0][0][0], menorc]))
+            if par not in self.conjunto_arestas:
+                ja_escolhidas.add(par)
+                self.adicionar_aresta(nome_cidade, conexao, menorv)
+            else:
+                resultado = next((item for item in self.arestas if item[:2] == par), None)
+                self.arestas.remove(resultado)
+                self.arestas.append((*par,menorv))
+                
+                
+            
+            
+            """
+            copiar as arestas
+            """
+            
             for aresta in self.arestas.copy():
                 a, b, p = aresta
                 for i in range(1, num_jogadores):
                     a_aux = a.split("_")[0] + f"_{i}"
                     b_aux = b.split("_")[0] + f"_{i}"
                     self.adicionar_aresta(a_aux, b_aux, p)
+
+            """
+            Regiões entre jogadores
+            """
 
             # Liga as últimas camadas (meios) entre os jogadores
             ultima_camadas = [regioes_jogadores[j][-1] for j in range(num_jogadores)]
@@ -303,7 +328,7 @@ class Grafo:
             populacoes_cidades = {
                 cidade: dados["pop"] for cidade, dados in self.nos.items()
             }
-
+            
             for i in range(num_jogadores):
                 for j in range(i + 1, num_jogadores):
                     camada_i = ultima_camadas[i]
