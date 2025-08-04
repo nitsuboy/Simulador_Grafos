@@ -2,9 +2,10 @@ import pygame
 import json
 import os
 import math
+import re
 
 # --- Constantes e Configurações Iniciais ---
-WIDTH, HEIGHT = 700, 700
+WIDTH, HEIGHT = 1920, 1080
 FPS = 60  # Aumentado para uma animação mais suave
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -484,8 +485,10 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         self.game_state = 'menu' # 'menu', 'game', 'animating'
+        self.script_dir = os.path.dirname(__file__)
         self.round_counter = 0
-        self.max_turn = 9
+        self.max_turn = self._get_max_turn()
+        self.end_of_simulation = False
 
         self.animation_duration = 0.5 # em segundos
         self.animation_timer = 0.0
@@ -494,6 +497,7 @@ class Game:
         self.menu = Menu()
         self.map = None
         self.hud = None
+        self.restart_button_rect = pygame.Rect(self.screen.get_rect().centerx - 150, self.screen.get_rect().centery + 50, 300, 50)
 
     def _load_background_tile(self):
         try:
@@ -502,6 +506,24 @@ class Game:
         except pygame.error as e:
             print(f"Não foi possível carregar a imagem de fundo: {e}")
             return None
+
+    def _get_max_turn(self):
+        """Verifica a pasta de estados e retorna o número máximo de turno."""
+        base_path = os.path.join(self.script_dir, '..', 'estados')
+        if not os.path.exists(base_path):
+            return 0
+        
+        max_turn = -1
+        pattern = re.compile(r'estado_turno_(\d+)_.*\.json')
+        
+        for filename in os.listdir(base_path):
+            match = pattern.match(filename)
+            if match:
+                turn_num = int(match.group(1))
+                if turn_num > max_turn:
+                    max_turn = turn_num
+                    
+        return max_turn if max_turn != -1 else 0
 
     def run(self):
         while self.running:
@@ -527,8 +549,13 @@ class Game:
             
             elif self.game_state == 'game':
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    if self.hud.left_arrow_rect.collidepoint(event.pos): self.change_turn(-1)
-                    elif self.hud.right_arrow_rect.collidepoint(event.pos): self.change_turn(1)
+                    if self.end_of_simulation:
+                        if self.restart_button_rect.collidepoint(event.pos):
+                            self.restart_game()
+                    elif self.hud.left_arrow_rect.collidepoint(event.pos):
+                        self.change_turn(-1)
+                    elif self.hud.right_arrow_rect.collidepoint(event.pos):
+                        self.change_turn(1)
 
     def update(self, dt):
         if self.game_state == 'animating':
@@ -541,17 +568,34 @@ class Game:
         self.game_state = 'game'
         self.map = Map()
         self.hud = HUD(self.menu.player_names)
-        self.change_turn(0, initial_load=True)
+        # Inicia no turno 0, sem direção
+        self.map.prepare_turn_animation(self.round_counter, self.animation_duration)
 
-    def change_turn(self, direction, initial_load=False):
-        if self.game_state != 'game': return
-            
-        new_turn = self.round_counter + direction if not initial_load else 0
-        
-        if -1 <= new_turn <= self.max_turn:
-            self.round_counter = new_turn
-            self.game_state = 'animating'
-            self.map.prepare_turn_animation(new_turn, self.animation_duration)
+    def restart_game(self):
+        """Reseta a simulação para o primeiro turno."""
+        print("Reiniciando a simulação.")
+        self.round_counter = 0
+        self.end_of_simulation = False
+        self.game_state = 'animating'
+        self.map.prepare_turn_animation(self.round_counter, self.animation_duration)
+
+    def change_turn(self, direction):
+        new_turn = self.round_counter + direction
+
+        if new_turn > self.max_turn:
+            self.end_of_simulation = True
+            print("Chegou ao final da simulação.")
+            return
+
+        if new_turn < 0:
+            # Impede de ir para um turno negativo
+            return
+
+        # Se chegou aqui, o turno é válido
+        self.end_of_simulation = False
+        self.round_counter = new_turn
+        self.game_state = 'animating'
+        self.map.prepare_turn_animation(self.round_counter, self.animation_duration)
 
     def draw(self):
         self._draw_background()
@@ -560,6 +604,9 @@ class Game:
         else:
             if self.map: self.map.draw(self.screen)
             if self.hud: self.hud.draw(self.screen, self.round_counter)
+
+        if self.end_of_simulation:
+            self._draw_end_message()
         
         pygame.display.flip()
     
@@ -579,6 +626,27 @@ class Game:
         self.hud.round_font = pygame.font.SysFont(None, int(48 * scale_y))
         self.hud.legend_font = pygame.font.SysFont(None, int(20 * scale_y))
     
+    def _draw_end_message(self):
+        """Desenha a mensagem de fim de simulação."""
+        overlay = pygame.Surface((self.screen.get_width(), self.screen.get_height()), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))  # Sobreposição escura semitransparente
+        self.screen.blit(overlay, (0, 0))
+
+        end_font = pygame.font.SysFont(None, 80)
+        draw_text_with_outline(
+            self.screen, end_font, "Fim da Simulação",
+            WHITE, BLACK, (self.screen.get_rect().centerx, self.screen.get_rect().centery - 40), 2
+        )
+
+        # Desenha o botão de reiniciar
+        button_font = pygame.font.SysFont(None, 40)
+        pygame.draw.rect(self.screen, PLAYER_COLORS[0], self.restart_button_rect, border_radius=10)
+        pygame.draw.rect(self.screen, WHITE, self.restart_button_rect, 2, border_radius=10)
+        draw_text_with_outline(
+            self.screen, button_font, "Retornar ao Início",
+            WHITE, BLACK, self.restart_button_rect.center, 1
+        )
+
     def _draw_background(self):
         if self.tile_image:
             tile_w, tile_h = self.tile_image.get_size()
