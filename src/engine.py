@@ -23,7 +23,7 @@ class Tropa:
         self.forca = forca
         self.localizacao = dono.id_base
         self.fila_de_comandos = fila_de_comandos if fila_de_comandos is not None else []
-        # Estados possíveis: 'ociosa', 'movendo', 'atacando', 'recuando', 'encurralada', 'vitoriosa'
+        # Estados possíveis: 'ociosa', 'movendo', 'atacando', 'recuando', 'vitoriosa'
         self.estado = "ociosa"
         self.caminho_atual = []
         self.alvo_de_ataque = None  # Para guardar o alvo do comando ATACAR
@@ -363,10 +363,16 @@ class Jogo:
             ]  # Exclui a cidade atual do caminho
             tropa.estado = "recuando"
         else:
-            # Se não houver caminho (tropa está isolada), ela fica encurralada
-            tropa.estado = "encurralada"
+            # Se não houver caminho (tropa está isolada), ela fica encurralada e a cidade se torna neutra
+            cidade_atual = self.mapa.cidades[tropa.localizacao]
+            cidade_atual.dono = None
+            for t in cidade_atual.tropas_estacionadas:
+                if t.dono.id == tropa.dono.id:
+                    tropa.dono.tropas.remove(t)
+            cidade_atual.tropas_estacionadas.clear()  # Remove todas as tropas estacionadas
+            
             print(
-                f"ALERTA: Tropa {tropa.id} está encurralada em {tropa.localizacao} e não pode recuar!"
+                f"ALERTA: A Tropa {tropa.id} ficou encurralada em {tropa.localizacao} e foi perdida."
             )
 
     def _calcular_mst_prim(self, jogador: Jogador):
