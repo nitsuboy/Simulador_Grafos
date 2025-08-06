@@ -125,13 +125,75 @@ class City:
         pygame.draw.ellipse(surface, base_color, top_rect)
         pygame.draw.ellipse(surface, border_color, top_rect, 2)
 
+class AnimatedTransport:
+    """Representa a animação de um transporte."""
+    def __init__(self, payload, owner, start_pos, end_pos, duration, fade_out=False):
+        self.payload = payload
+        self.owner = owner
+        self.start_pos = start_pos
+        self.end_pos = end_pos
+        self.current_pos = start_pos
+        self.animation_duration = duration
+        self.animation_timer = 0.0
+        self.fade_out = fade_out
+        self.alpha = 255
+
+    def update(self, dt):
+        if self.animation_timer < self.animation_duration:
+            self.animation_timer = min(self.animation_timer + dt, self.animation_duration)
+            progress = self.animation_timer / self.animation_duration
+            t = 1 - (1 - progress) ** 3  # Easing out cúbico
+            self.current_pos = lerp_vector(self.start_pos, self.end_pos, t)
+            
+            if self.fade_out:
+                self.alpha = int(255 * (1 - progress))
+
+    def draw(self, surface, font):
+        if self.alpha == 0:
+            return
+
+        if self.owner is not None and self.owner < len(PLAYER_COLORS):
+            color = PLAYER_COLORS[self.owner]
+        else:
+            color = NEUTRAL_COLOR
+        shadow_color = tuple(max(0, c - 50) for c in color)
+        border_color = tuple(max(0, c - 80) for c in color)
+        
+        size = 30  # Tamanho do quadrado
+        rect = pygame.Rect(self.current_pos[0] - size / 2, self.current_pos[1] - size / 2, size, size)
+
+        # Lógica para desenhar com transparência (fade-out)
+        if self.fade_out:
+            transport_surface = pygame.Surface((size, size), pygame.SRCALPHA)
+            pygame.draw.rect(transport_surface, (*shadow_color, self.alpha), (2, 2, size, size))
+            pygame.draw.rect(transport_surface, (*color, self.alpha), (0, 0, size, size))
+            pygame.draw.rect(transport_surface, (*border_color, self.alpha), (0, 0, size, size), 2)
+            
+            if self.payload > 0:
+                text = font.render(str(self.payload), True, (*BLACK, self.alpha))
+                text_rect = text.get_rect(center=(size / 2, size / 2))
+                transport_surface.blit(text, text_rect)
+            
+            surface.blit(transport_surface, rect.topleft)
+        else:
+            pygame.draw.rect(surface, shadow_color, rect.move(2, 2))
+            pygame.draw.rect(surface, color, rect)
+            pygame.draw.rect(surface, border_color, rect, 2)
+            
+            if self.payload > 0:
+                text = font.render(str(self.payload), True, BLACK)
+                text_rect = text.get_rect(center=rect.center)
+                surface.blit(text, text_rect)
+
+
 class Map:
     def __init__(self, map_file='mapa_debug.json'):
         self.script_dir = os.path.dirname(__file__)
         self.map_file = os.path.join(self.script_dir, map_file)
         self.cities = {}
         self.edges = []
-        self.animated_troops = [] # <-- Armazena as tropas animadas
+        self.animated_troops = []
+        self.animated_transports = [] # <-- Armazena os transportes animados
         self._load_base_map()
         self.pending_animation = []  # Para armazenar animações pendentes
         self.animating = False
@@ -156,6 +218,31 @@ class Map:
             posicoes.append((x, y))
         return posicoes
     
+    def _animar_transportes(self, state_origem, state_destino, animation_duration):
+        """Compara os estados de transporte e cria as animações necessárias."""
+        self.animated_transports.clear()
+        transports_origem = {t['dono']: t for t in state_origem.get('transportes', [])}
+        transports_destino = {t['dono']: t for t in state_destino.get('transportes', [])}
+
+        for dono, transport_destino in transports_destino.items():
+            transport_origem = transports_origem.get(dono)
+            if not transport_origem:
+                continue # Transporte novo, sem animação de movimento
+
+            # Se a localização mudou, cria uma animação de movimento
+            if transport_origem['localizacao'] != transport_destino['localizacao']:
+                start_pos = self.cities[transport_origem['localizacao']].pos
+                end_pos = self.cities[transport_destino['localizacao']].pos
+                payload = transport_destino['carga_populacao']
+                owner = int(transport_destino['dono'])
+                
+                # Animação de destruição
+                fade_out = (transport_destino['estado'] == 'destruido')
+
+                anim_transport = AnimatedTransport(payload, owner, start_pos, end_pos, animation_duration, fade_out=fade_out)
+                self.animated_transports.append(anim_transport)
+
+
     def _animar_tropas_distribuidas(self, state_origem, state_destino, animation_duration):
         """Anima tropas entre dois estados e distribui elas em círculo com rotação suave."""
         
@@ -292,64 +379,57 @@ class Map:
             with open(path_prev_dc, 'r', encoding='utf-8') as f:
                 state_prev_dc = json.load(f)
 
-        # Etapa 1: Atualiza cidades para AC e anima DC anterior -> AC
-        for city_state in state_ac.get('mapa', {}).get('cidades', []):
-            city_id = city_state['id']
-            if city_id in self.cities:
-                dono_value = city_state.get('dono')
-                self.cities[city_id].owner = int(dono_value) if dono_value is not None else None
-                self.cities[city_id].population = city_state.get('populacao')
-        
-        
-        if state_prev_dc:  
-            pass
-            self._animar_tropas_distribuidas(state_prev_dc, state_ac, animation_duration)
-        else:
-            # Se não existe DC anterior (turno inicial), apenas prepara AC
-            self._animar_tropas_distribuidas(state_ac, state_ac, animation_duration)
+        # Etapa 1: Animação do final do turno anterior (prev_dc) para o início deste (ac)
+        state_start = state_prev_dc if state_prev_dc else state_ac
+        self._update_cities_from_state(state_ac) # Atualiza mapa para o estado de destino (ac)
+        self._animar_tropas_distribuidas(state_start, state_ac, animation_duration)
+        self._animar_transportes(state_start, state_ac, animation_duration)
 
         # Armazena etapa 2 (AC -> DC) para disparar automática ao fim da 1ª
-        self.pending_animation.append({
-            "from": state_ac,
-            "to": state_mc,
-            "duration": animation_duration
-        })
-        self.pending_animation.append({
-            "from": state_mc,
-            "to": state_dc,
-            "duration": animation_duration
-        })
+        # Armazena etapas seguintes para disparar automaticamente
+        self.pending_animation.append((state_ac, state_mc, animation_duration))
+        self.pending_animation.append((state_mc, state_dc, animation_duration))
         
 
         return True
 
 
-    def _trigger_next_animation(self):
-        """Dispara AC -> DC automaticamente ao término da primeira animação."""
-        if not hasattr(self, "pending_animation") or not self.pending_animation:
-            return
-        next_animation = self.pending_animation.pop(0)
-        state_ac = next_animation["from"]
-        state_dc = next_animation["to"]
-        duration = next_animation["duration"]
-
-        # Atualiza cidades para o estado final (DC)
-        for city_state in state_dc.get('mapa', {}).get('cidades', []):
+    def _update_cities_from_state(self, state):
+        """Atualiza o dono e a população das cidades com base em um estado."""
+        for city_state in state.get('mapa', {}).get('cidades', []):
             city_id = city_state['id']
             if city_id in self.cities:
                 dono_value = city_state.get('dono')
                 self.cities[city_id].owner = int(dono_value) if dono_value is not None else None
                 self.cities[city_id].population = city_state.get('populacao')
-                
-        self._animar_tropas_distribuidas(state_ac, state_dc, duration)
+
+    def _trigger_next_animation(self):
+        """Dispara a próxima animação da fila."""
+        if not hasattr(self, "pending_animation") or not self.pending_animation:
+            return
+        
+        state_from, state_to, duration = self.pending_animation.pop(0)
+
+        # Atualiza o mapa para o estado de destino ANTES de criar a animação
+        self._update_cities_from_state(state_to)
+        self._animar_tropas_distribuidas(state_from, state_to, duration)
+        self._animar_transportes(state_from, state_to, duration)
     
     def update_animation(self, dt):
-        """Atualiza todas as tropas animadas."""
-        if not self.animated_troops:
+        """Atualiza todas as unidades animadas (tropas e transportes)."""
+        if not self.animated_troops and not self.animated_transports:
             return
+
         for troop in self.animated_troops:
             troop.update(dt)
-        if all(t.animation_timer >= t.animation_duration for t in self.animated_troops):
+        
+        for transport in self.animated_transports:
+            transport.update(dt)
+
+        all_troops_done = all(t.animation_timer >= t.animation_duration for t in self.animated_troops)
+        all_transports_done = all(t.animation_timer >= t.animation_duration for t in self.animated_transports)
+
+        if all_troops_done and all_transports_done:
             if hasattr(self, "pending_animation") and self.pending_animation:
                 print("Disparando animação pendente AC -> DC.")
                 self._trigger_next_animation()
@@ -366,6 +446,9 @@ class Map:
         # Desenha as tropas em suas posições atuais de animação
         for troop in self.animated_troops:
             troop.draw(surface, self.troop_font)
+
+        for transport in self.animated_transports:
+            transport.draw(surface, self.troop_font)
 
     def _draw_edges(self, surface):
         for a, b, weight in self.edges:
