@@ -6,10 +6,11 @@ import re
 
 # --- Constantes e Configurações Iniciais ---
 WIDTH, HEIGHT = 1920, 1080
-FPS = 60  # Aumentado para uma animação mais suave
+FPS = 60
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 DARK_GREY = (30, 30, 30)
+AUTO_PLAY_DELAY = 2.0  # <--- NOVO: Tempo em segundos entre os turnos no auto-play
 
 # --- Constantes de Cor ---
 PLAYER_COLORS = [
@@ -18,13 +19,12 @@ PLAYER_COLORS = [
 ]
 NEUTRAL_COLOR = (200, 200, 200)
 
-
 # --- Funções Utilitárias ---
 def draw_text_with_outline(surface, font, text, text_color, outline_color, pos, outline_width=1, alpha=255):
     text_surface = font.render(text, True, text_color)
-    text_surface.set_alpha(alpha)  # Garante que o texto seja totalmente opaco
+    text_surface.set_alpha(alpha)
     outline_surface = font.render(text, True, outline_color)
-    outline_surface.set_alpha(alpha)  # Garante que o contorno seja totalmente opaco
+    outline_surface.set_alpha(alpha)
     text_rect = text_surface.get_rect(center=pos)
 
     for dx in range(-outline_width, outline_width + 1, outline_width):
@@ -35,17 +35,24 @@ def draw_text_with_outline(surface, font, text, text_color, outline_color, pos, 
     surface.blit(text_surface, text_rect)
 
 def lerp(v0, v1, t):
-    """Interpolação linear entre dois valores."""
     return v0 + t * (v1 - v0)
 
 def lerp_vector(v0, v1, t):
-    """Interpolação linear entre dois vetores/tuplas."""
     return (lerp(v0[0], v1[0], t), lerp(v0[1], v1[1], t))
+
+# <--- REVISÃO: Função movida para fora da classe Map por ser um utilitário geral.
+def distribuir_tropas_em_circulo(city_pos, num_tropas, offset_radius=45):
+    posicoes = []
+    for i in range(num_tropas):
+        angle = (2 * math.pi / num_tropas) * i
+        x = city_pos[0] + offset_radius * math.cos(angle)
+        y = city_pos[1] + offset_radius * math.sin(angle)
+        posicoes.append((x, y))
+    return posicoes
 
 # --- Classes do Jogo ---
 
 class AnimatedTroop:
-    """Controla a animação de uma tropa individual."""
     def __init__(self, strength, owner_id, start_pos, end_pos, animation_duration,fade_out=False):
         self.strength = strength
         self.owner_id = owner_id
@@ -54,28 +61,25 @@ class AnimatedTroop:
         self.current_pos = start_pos
         self.animation_duration = animation_duration
         self.animation_timer = 0.0
-        self.fade_out = fade_out  # Nova flag para desaparecer suavemente
-        self.alpha = 255  # Opacidade inicial (255 = totalmente visível)
+        self.fade_out = fade_out
+        self.alpha = 255
 
     def update(self, dt):
-        """Atualiza o progresso da animação."""
         if self.animation_timer < self.animation_duration:
             self.animation_timer = min(self.animation_timer + dt, self.animation_duration)
             progress = self.animation_timer / self.animation_duration
-            # Easing function (ease out) para uma animação mais suave no final
             t = 1 - (1 - progress) ** 3
             self.current_pos = lerp_vector(self.start_pos, self.end_pos, t)
             
             if self.fade_out:
-                self.alpha = int(255 * (1 - progress))  # 255 → 0
+                self.alpha = int(255 * (1 - progress))
 
     def draw(self, surface, font):
-        """Desenha a tropa em sua posição animada atual."""
         temp_surface = pygame.Surface((100, 100), pygame.SRCALPHA)
         temp_surface = temp_surface.convert_alpha()
         
         color = PLAYER_COLORS[int(self.owner_id)]           
-        faded_color = (*color, self.alpha)  # Adiciona transparência RGBA
+        faded_color = (*color, self.alpha)
         
         text_width, text_height = font.size(str(self.strength))
         radius = max(text_width, text_height) // 2 + 6
@@ -95,17 +99,11 @@ class City:
         self.population = population
         self.owner = None
 
-        if 'basej_0' in self.id:
-            self.owner = 0
-        elif 'basej_1' in self.id:
-            self.owner = 1
+        if 'basej_0' in self.id: self.owner = 0
+        elif 'basej_1' in self.id: self.owner = 1
 
     def draw(self, surface, font):
-        if self.owner is not None:
-            color = PLAYER_COLORS[self.owner]
-        else:
-            color = NEUTRAL_COLOR
-
+        color = PLAYER_COLORS[self.owner] if self.owner is not None else NEUTRAL_COLOR
         self._draw_coin(surface, color, self.pos, 30, 8)
         
         pop_text = font.render(str(self.population), True, BLACK)
@@ -126,7 +124,7 @@ class City:
         pygame.draw.ellipse(surface, border_color, top_rect, 2)
 
 class AnimatedTransport:
-    """Representa a animação de um transporte."""
+    # ... (Esta classe não foi modificada) ...
     def __init__(self, payload, owner, start_pos, end_pos, duration, fade_out=False):
         self.payload = payload
         self.owner = owner
@@ -185,8 +183,8 @@ class AnimatedTransport:
                 text_rect = text.get_rect(center=rect.center)
                 surface.blit(text, text_rect)
 
-
 class Map:
+    # ... (Esta classe não foi modificada) ...
     def __init__(self, map_file='mapa_debug.json'):
         self.base_path = os.path.join(os.path.dirname(__file__), '..', 'estados')
         self.map_file = os.path.join(os.path.dirname(__file__), map_file)
@@ -208,16 +206,7 @@ class Map:
         
         self.cities = {c['id']: City(c['id'], tuple(map(int, c['pos'])), c['populacao']) for c in data['cidades']}
         self.edges = [(a['de'], a['para'], a['peso']) for a in data['arestas']]
-    def distribuir_tropas_em_circulo(city_pos, num_tropas, offset_radius=45):
-        """Retorna posições em círculo ao redor de uma cidade."""
-        posicoes = []
-        for i in range(num_tropas):
-            angle = (2 * math.pi / num_tropas) * i
-            x = city_pos[0] + offset_radius * math.cos(angle)
-            y = city_pos[1] + offset_radius * math.sin(angle)
-            posicoes.append((x, y))
-        return posicoes
-    
+
     def _animar_transportes(self, state_origem, state_destino, animation_duration):
         """Compara os estados de transporte e cria as animações necessárias."""
         self.animated_transports.clear()
@@ -268,23 +257,13 @@ class Map:
                 continue
 
             city_pos = self.cities[cidade_id].pos
-            num_tropas = len(tropas)
-            radius = 45
-
-            # Calcula posições finais em círculo
-            posicoes_finais = [
-                (
-                    city_pos[0] + radius * math.cos((2 * math.pi / num_tropas) * i),
-                    city_pos[1] + radius * math.sin((2 * math.pi / num_tropas) * i),
-                )
-                for i in range(num_tropas)
-            ]
+            final_positions = distribuir_tropas_em_circulo(city_pos, len(tropas))
 
             # Distribuir tropas com transição suave
             for i, (troop_id, troop_final) in enumerate(tropas):
                 dono = troop_final["dono"]
                 forca = troop_final["forca"]
-                destino_pos = posicoes_finais[i]
+                destino_pos = final_positions[i]
 
                 # Origem: usa última posição visual, ou posição anterior, ou surge direto
                 if troop_id in ultimas_posicoes:
@@ -311,45 +290,15 @@ class Map:
                 troop.id = troop_id
                 self.animated_troops.append(troop)
     
-    def _animar_tropas(self, state_origem, state_destino, animation_duration):
-        """Anima tropas entre dois estados JSON."""
-        self.animated_troops = []
-        tropas_origem = {t["id"]: t for t in state_origem.get("tropas_em_campo", [])}
-        tropas_destino = {t["id"]: t for t in state_destino.get("tropas_em_campo", [])}
-
-        # Tropas que se movem ou permanecem
-        for troop_id, troop_final in tropas_destino.items():
-            dono, forca = troop_final["dono"], troop_final["forca"]
-            destino_id = troop_final["localizacao"]
-            destino_pos = self.cities[destino_id].pos if destino_id in self.cities else (0, 0)
-
-            if troop_id in tropas_origem:
-                origem_id = tropas_origem[troop_id]["localizacao"]
-                origem_pos = self.cities[origem_id].pos if origem_id in self.cities else destino_pos
-            else:
-                origem_pos = destino_pos  # tropa nova aparece no destino
-
-            self.animated_troops.append(
-                AnimatedTroop(forca, dono, origem_pos, destino_pos, animation_duration)
-            )
-
-        # Tropas que sumiram (fade out)
-        for troop_id, troop_inicio in tropas_origem.items():
-            if troop_id not in tropas_destino:
-                origem_id = troop_inicio["localizacao"]
-                origem_pos = self.cities[origem_id].pos if origem_id in self.cities else (0, 0)
-                self.animated_troops.append(
-                    AnimatedTroop(troop_inicio["forca"], troop_inicio["dono"], origem_pos, origem_pos, animation_duration)
-                )
-    
     def prepare_turn_animation(self, turn_number, animation_duration):
         """Anima DC do turno anterior -> AC do turno atual -> DC do turno atual."""
-        print(f"Preparando animação para o turno {turn_number}...")
         self.animating = True
-        # Caso especial: turno inicial
-        if turn_number == -1:
+
+        if turn_number == -1: # <--- Lógica para estado inicial
             self._load_base_map()
             self.animated_troops = []
+            self.animated_transports = []
+            self.animating = False # Não há animação no estado -1
             return True
 
         # Caminhos dos arquivos
@@ -358,43 +307,33 @@ class Map:
         path_mc = os.path.join(self.base_path, f'estado_turno_{turn_number}_mc.json')
         path_dc = os.path.join(self.base_path, f'estado_turno_{turn_number}_dc.json')
 
-        # Verifica se existem os arquivos necessários
-        if not os.path.exists(path_ac) or not os.path.exists(path_dc) or not os.path.exists(path_mc):
-            print(f"Arquivos AC/DC do turno {turn_number} não encontrados.")
+        if not all(os.path.exists(p) for p in [path_ac, path_mc, path_dc]):
+            print(f"Arquivos AC/MC/DC do turno {turn_number} não encontrados.")
             self.animating = False
             return False
-        if turn_number > 0 and not os.path.exists(path_prev_dc):
-            print(f"Arquivo DC do turno anterior ({turn_number-1}) não encontrado.")
-            return False
-        # Carrega os estados
-        with open(path_ac, 'r', encoding='utf-8') as f:
-            state_ac = json.load(f)
-        with open(path_mc, 'r', encoding='utf-8') as f:
-            state_mc = json.load(f)
-        with open(path_dc, 'r', encoding='utf-8') as f:
-            state_dc = json.load(f)
-        state_prev_dc = None
+        
+        state_prev_dc = {} # Estado inicial vazio se for o turno 0
         if turn_number > 0:
+            if not os.path.exists(path_prev_dc):
+                print(f"Arquivo DC do turno anterior ({turn_number-1}) não encontrado.")
+                self.animating = False
+                return False
             with open(path_prev_dc, 'r', encoding='utf-8') as f:
                 state_prev_dc = json.load(f)
+        
+        with open(path_ac, 'r', encoding='utf-8') as f: state_ac = json.load(f)
+        with open(path_mc, 'r', encoding='utf-8') as f: state_mc = json.load(f)
+        with open(path_dc, 'r', encoding='utf-8') as f: state_dc = json.load(f)
 
-        # Etapa 1: Animação do final do turno anterior (prev_dc) para o início deste (ac)
-        state_start = state_prev_dc if state_prev_dc else state_ac
-        self._update_cities_from_state(state_ac) # Atualiza mapa para o estado de destino (ac)
-        self._animar_tropas_distribuidas(state_start, state_ac, animation_duration)
-        self._animar_transportes(state_start, state_ac, animation_duration)
-
-        # Armazena etapa 2 (AC -> DC) para disparar automática ao fim da 1ª
-        # Armazena etapas seguintes para disparar automaticamente
+        self.pending_animation.clear()
+        self.pending_animation.append((state_prev_dc, state_ac, animation_duration))
         self.pending_animation.append((state_ac, state_mc, animation_duration))
         self.pending_animation.append((state_mc, state_dc, animation_duration))
         
-
+        self._trigger_next_animation()
         return True
 
-
     def _update_cities_from_state(self, state):
-        """Atualiza o dono e a população das cidades com base em um estado."""
         for city_state in state.get('mapa', {}).get('cidades', []):
             city_id = city_state['id']
             if city_id in self.cities:
@@ -403,51 +342,36 @@ class Map:
                 self.cities[city_id].population = city_state.get('populacao')
 
     def _trigger_next_animation(self):
-        """Dispara a próxima animação da fila."""
-        if not hasattr(self, "pending_animation") or not self.pending_animation:
+        if not self.pending_animation:
+            self.animating = False
             return
         
         state_from, state_to, duration = self.pending_animation.pop(0)
-
-        # Atualiza o mapa para o estado de destino ANTES de criar a animação
         self._update_cities_from_state(state_to)
         self._animar_tropas_distribuidas(state_from, state_to, duration)
         self._animar_transportes(state_from, state_to, duration)
     
     def update_animation(self, dt):
-        """Atualiza todas as unidades animadas (tropas e transportes)."""
-        if not self.animated_troops and not self.animated_transports:
-            return
+        if not self.animating: return
 
-        for troop in self.animated_troops:
-            troop.update(dt)
-        
-        for transport in self.animated_transports:
-            transport.update(dt)
+        for troop in self.animated_troops: troop.update(dt)
+        for transport in self.animated_transports: transport.update(dt)
 
         all_troops_done = all(t.animation_timer >= t.animation_duration for t in self.animated_troops)
         all_transports_done = all(t.animation_timer >= t.animation_duration for t in self.animated_transports)
 
         if all_troops_done and all_transports_done:
-            if hasattr(self, "pending_animation") and self.pending_animation:
-                print("Disparando animação pendente AC -> DC.")
+            if self.pending_animation:
                 self._trigger_next_animation()
             else:
-                print("Todas as animações concluídas.")
                 self.animating = False
 
     def draw(self, surface):
-        """Desenha todos os componentes estáticos e as tropas animadas."""
         self._draw_edges(surface)
         self._draw_cities(surface)
         self._draw_edge_weights(surface)
-
-        # Desenha as tropas em suas posições atuais de animação
-        for troop in self.animated_troops:
-            troop.draw(surface, self.troop_font)
-
-        for transport in self.animated_transports:
-            transport.draw(surface, self.troop_font)
+        for troop in self.animated_troops: troop.draw(surface, self.troop_font)
+        for transport in self.animated_transports: transport.draw(surface, self.troop_font)
 
     def _draw_edges(self, surface):
         for a, b, weight in self.edges:
@@ -465,9 +389,8 @@ class Map:
                 label_pos = (pos_a[0] * 0.8 + pos_b[0] * 0.2, pos_a[1] * 0.8 + pos_b[1] * 0.2)
                 draw_text_with_outline(surface, self.edge_font, str(weight), WHITE, BLACK, label_pos)
 
-# ... (As classes HUD e Menu permanecem as mesmas) ...
 class LogPanel:
-    """Gerencia a exibição de um painel com mensagens de log e botões de rolagem."""
+    # ... (Esta classe não foi modificada) ...
     def __init__(self, x, y, width, height, font):
         self.rect = pygame.Rect(x, y, width, height)
         self.font = font
@@ -548,44 +471,38 @@ class LogPanel:
         ])
 
 class HUD:
-    """Gerencia a Interface do Usuário (HUD), como contador de turno e retratos dos jogadores."""
     def __init__(self, selected_characters):
-        # Fontes
         self.font = pygame.font.SysFont(None, 24)
         self.round_font = pygame.font.SysFont(None, 48)
         self.log_font = pygame.font.SysFont('Consolas', 14)
 
-        # Prepara dados dos jogadores
         self.player_portraits = []
         self.player_names = []
         if selected_characters:
             for char in selected_characters:
-                portrait = pygame.transform.scale(char.image, (80, 80)) # Retrato menor para o HUD
-                self.player_portraits.append(portrait)
+                self.player_portraits.append(pygame.transform.scale(char.image, (80, 80)))
                 self.player_names.append(char.name)
 
-        # Painel de Log
         log_panel_width = WIDTH // 2 - 40
-        log_panel_height = 250
-        self.log_panel = LogPanel(20, HEIGHT - log_panel_height - 20, log_panel_width, log_panel_height, self.log_font)
+        self.log_panel = LogPanel(20, HEIGHT - 270, log_panel_width, 250, self.log_font)
         self.current_hud_round = -1
 
-        # Botões de Navegação
         self.left_arrow_rect = None
         self.right_arrow_rect = None
+        self.autoplay_button_rect = None # <--- NOVO
 
     def handle_event(self, event):
-        """Processa um evento e o passa para os subcomponentes, como o LogPanel."""
         self.log_panel.handle_event(event)
 
-    def draw(self, surface, round_num, log_entries):
-        """Desenha todos os elementos do HUD."""
-        # 1. Desenha os retratos dos jogadores
+    def draw(self, surface, round_num, log_entries, is_auto_playing): # <--- NOVO: Parâmetro is_auto_playing
         self._draw_player_portraits(surface)
 
-        # 2. Desenha o contador de turno e botões de navegação
-        turn_text_str = f"Turno: {round_num}"
-        text_pos = (surface.get_width() / 2, 45) # Centralizado no topo
+        if round_num >= 0:
+            turn_text_str = f"Turno: {round_num}"
+        else:
+            turn_text_str = "Simulação não iniciada" # <--- NOVO: Texto para turno -1
+        
+        text_pos = (surface.get_width() / 2, 45)
         draw_text_with_outline(surface, self.round_font, turn_text_str, WHITE, BLACK, text_pos, 2)
         
         turn_text_surf = self.round_font.render(turn_text_str, True, WHITE)
@@ -594,50 +511,62 @@ class HUD:
         button_y = text_rect.centery
         self.left_arrow_rect = pygame.Rect(text_rect.left - 70, button_y - text_rect.height // 2, 50, text_rect.height)
         self.right_arrow_rect = pygame.Rect(text_rect.right + 20, button_y - text_rect.height // 2, 50, text_rect.height)
+        # <--- NOVO: Posição do botão de auto-play
+        self.autoplay_button_rect = pygame.Rect(self.right_arrow_rect.right + 10, button_y - text_rect.height // 2, 50, text_rect.height)
 
-        self._draw_navigation_buttons(surface, self.left_arrow_rect, self.right_arrow_rect)
+        self._draw_navigation_buttons(surface, self.left_arrow_rect, self.right_arrow_rect, self.autoplay_button_rect, is_auto_playing)
         
-        # 3. Desenha o painel de log
         if round_num != self.current_hud_round:
             self.log_panel.set_logs(log_entries)
             self.current_hud_round = round_num
         
         self.log_panel.draw(surface)
 
-    def _draw_navigation_buttons(self, surface, left_rect, right_rect):
-        # Botão Esquerdo
+    def _draw_navigation_buttons(self, surface, left_rect, right_rect, autoplay_rect, is_auto_playing): # <--- NOVO
+        # Botões de seta
         pygame.draw.rect(surface, (0, 150, 0), left_rect, border_radius=5)
         pygame.draw.rect(surface, WHITE, left_rect, 2, border_radius=5)
         left_arrow_text = self.font.render("<", True, WHITE)
         surface.blit(left_arrow_text, left_arrow_text.get_rect(center=left_rect.center))
 
-        # Botão Direito
         pygame.draw.rect(surface, (0, 150, 0), right_rect, border_radius=5)
         pygame.draw.rect(surface, WHITE, right_rect, 2, border_radius=5)
         right_arrow_text = self.font.render(">", True, WHITE)
         surface.blit(right_arrow_text, right_arrow_text.get_rect(center=right_rect.center))
 
-
+        # <--- NOVO: Botão de auto-play
+        autoplay_color = (0, 100, 200) if is_auto_playing else (150, 0, 0)
+        pygame.draw.rect(surface, autoplay_color, autoplay_rect, border_radius=5)
+        pygame.draw.rect(surface, WHITE, autoplay_rect, 2, border_radius=5)
+        
+        if is_auto_playing: # Ícone de Pause
+            pause_w, pause_h = 5, 20
+            pygame.draw.rect(surface, WHITE, (autoplay_rect.centerx - 8, autoplay_rect.centery - 10, pause_w, pause_h))
+            pygame.draw.rect(surface, WHITE, (autoplay_rect.centerx + 3, autoplay_rect.centery - 10, pause_w, pause_h))
+        else: # Ícone de Play
+            pygame.draw.polygon(surface, WHITE, [
+                (autoplay_rect.centerx - 8, autoplay_rect.centery - 10),
+                (autoplay_rect.centerx - 8, autoplay_rect.centery + 10),
+                (autoplay_rect.centerx + 10, autoplay_rect.centery)
+            ])
 
     def _draw_player_portraits(self, surface):
-        # Jogador 1 (esquerda)
         if len(self.player_portraits) > 0:
-            p1_portrait = self.player_portraits[0]
+            p1_portrait, p1_name = self.player_portraits[0], self.player_names[0]
             p1_rect = p1_portrait.get_rect(topleft=(20, 20))
             surface.blit(p1_portrait, p1_rect)
-            pygame.draw.rect(surface, (0, 100, 200), p1_rect, 3) # Borda P1
-            draw_text_with_outline(surface, self.font, self.player_names[0], WHITE, BLACK, (p1_rect.centerx, p1_rect.bottom + 15), 1)
+            pygame.draw.rect(surface, PLAYER_COLORS[0], p1_rect, 3)
+            draw_text_with_outline(surface, self.font, p1_name, WHITE, BLACK, (p1_rect.centerx, p1_rect.bottom + 15), 1)
 
-        # Jogador 2 (direita)
         if len(self.player_portraits) > 1:
-            p2_portrait = self.player_portraits[1]
+            p2_portrait, p2_name = self.player_portraits[1], self.player_names[1]
             p2_rect = p2_portrait.get_rect(topright=(WIDTH - 20, 20))
             surface.blit(p2_portrait, p2_rect)
-            pygame.draw.rect(surface, (200, 0, 0), p2_rect, 3) # Borda P2
-            draw_text_with_outline(surface, self.font, self.player_names[1], WHITE, BLACK, (p2_rect.centerx, p2_rect.bottom + 15), 1)
-            
+            pygame.draw.rect(surface, PLAYER_COLORS[1], p2_rect, 3)
+            draw_text_with_outline(surface, self.font, p2_name, WHITE, BLACK, (p2_rect.centerx, p2_rect.bottom + 15), 1)
+
 class Character:
-    """Armazena dados para um personagem selecionável."""
+    # ... (Esta classe não foi modificada) ...
     def __init__(self, name, image_path, pos, size):
         self.name = name
         self.image = pygame.image.load(image_path)
@@ -645,7 +574,7 @@ class Character:
         self.rect = self.image.get_rect(center=pos)
 
 class Menu:
-    """Gerencia a tela de seleção de personagens no estilo de jogos de luta."""
+    # ... (Esta classe não foi modificada) ...
     def __init__(self):
         self.font = pygame.font.SysFont(None, 32)
         self.title_font = pygame.font.SysFont(None, 72)
@@ -783,20 +712,23 @@ class Menu:
 class Game:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((WIDTH, HEIGHT),pygame.RESIZABLE)
-        pygame.display.set_caption("Visualizador de Grafo Animado")
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT)) # Removido RESIZABLE por simplicidade
+        pygame.display.set_caption("Visualizador de Batalha")
         self.clock = pygame.time.Clock()
         self.running = True
-        self.game_state = 'menu' # 'menu', 'game', 'animating'
+        self.game_state = 'menu'
         
         self.base_path = os.path.join(os.path.dirname(__file__), '..', 'estados')
-        self.current_round = 0
+        self.current_round = -1 # <--- NOVO: Inicia no turno -1
         self.max_round = self._get_max_round()
         self.log_content = self._load_log_file()
         self.end_of_simulation = False
 
-        self.animation_duration = 0.5 # em segundos
-        self.animation_timer = 0.0
+        self.animation_duration = 0.5
+        
+        # <--- NOVO: Atributos de Auto-Play
+        self.auto_play_enabled = False
+        self.auto_play_timer = 0.0
 
         self.tile_image = self._load_background_tile()
         self.menu = Menu()
@@ -804,103 +736,76 @@ class Game:
         self.hud = None
         self.restart_button_rect = pygame.Rect(self.screen.get_rect().centerx - 150, self.screen.get_rect().centery + 50, 300, 50)
 
-
     def _load_background_tile(self):
         try:
             image = pygame.image.load("./assets/ground.jpg").convert()
             return pygame.transform.scale(image, (200, 200))
-        except pygame.error as e:
-            print(f"Não foi possível carregar a imagem de fundo: {e}")
+        except pygame.error:
             return None
 
     def _get_max_round(self):
-        """Verifica a pasta de estados e retorna o número máximo de turno."""
-        if not os.path.exists(self.base_path):
-            return 0
-        
+        if not os.path.exists(self.base_path): return 0
         max_round = -1
         pattern = re.compile(r'estado_turno_(\d+)_.*\.json')
-        
         for filename in os.listdir(self.base_path):
             match = pattern.match(filename)
             if match:
                 round_num = int(match.group(1))
-                if round_num > max_round:
-                    max_round = round_num
-                    
+                if round_num > max_round: max_round = round_num
         return max_round if max_round != -1 else 0
 
     def _load_log_file(self):
-        """Carrega o conteúdo do arquivo de log em memória."""
         log_path = os.path.join(self.base_path, 'log.log')
         try:
-            with open(log_path, 'r', encoding='utf-8') as f:
-                return f.read()
-        except FileNotFoundError:
-            print(f"Arquivo de log não encontrado em {log_path}")
-            return ""
+            with open(log_path, 'r', encoding='utf-8') as f: return f.read()
+        except FileNotFoundError: return ""
 
     def _parse_log_for_turn(self, turn_number):
-        """Extrai as linhas de log para um turno específico."""
-        if not self.log_content:
-            return ["Log não disponível."]
-
-        # Expressão para encontrar todos os blocos de turno completos.
-        # Um bloco começa com '--- Preparando Turno ---' e vai até o próximo, ou até o fim do arquivo.
+        if not self.log_content: return ["Log não disponível."]
         pattern = re.compile(r'(--- Preparando Turno ---.*?)(?=\n--- Preparando Turno ---|\Z)', re.DOTALL)
-        
-        # Encontra todos os blocos que correspondem a um ciclo de turno
         turn_blocks = pattern.findall(self.log_content)
-
-        # Procura pelo bloco que contém o processamento do turno correto
         processing_marker = f'--- Processando Turno {turn_number} ---'
         for block in turn_blocks:
             if processing_marker in block:
-                # Encontrou o bloco correto, agora limpa e retorna as linhas
                 lines = block.strip().split('\n')
                 return [line.strip() for line in lines if line.strip()]
-
-        # Se nenhum bloco foi encontrado para o turno
         return [f"Nenhum evento registrado para o turno {turn_number}."]
 
     def run(self):
         while self.running:
-            dt = self.clock.tick(FPS) / 1000.0 # Delta time em segundos
-
+            dt = self.clock.tick(FPS) / 1000.0
             self.handle_events()
             self.update(dt)
             self.draw()
         pygame.quit()
+
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
                 return
 
-            # O HUD e seus componentes (LogPanel) devem sempre receber eventos para a UI responder.
-            if self.hud:
-                self.hud.handle_event(event)
+            if self.hud: self.hud.handle_event(event)
 
-            # Lógica de eventos específica para cada estado do jogo
             if self.game_state == 'menu':
-                # Passa o evento para o menu lidar com a seleção
                 self.menu.handle_event(event)
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    # Verifica se o botão de iniciar foi clicado APÓS ambos os jogadores serem selecionados
                     if all(self.menu.selected_players) and self.menu.start_button_rect.collidepoint(event.pos):
                         self.start_game()
 
             elif self.game_state == 'game':
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    # Se o clique foi no painel de log, o evento já foi tratado. Não faz mais nada.
-                    if self.hud and self.hud.log_panel and self.hud.log_panel.rect.collidepoint(event.pos):
-                        continue
-
-                    # Se não foi no painel, verifica os botões de turno.
+                    if self.hud.log_panel.rect.collidepoint(event.pos): continue
+                    
                     if self.hud.left_arrow_rect and self.hud.left_arrow_rect.collidepoint(event.pos):
+                        self.auto_play_timer = 0.0 # Reseta timer ao usar controle manual
                         self.change_turn(-1)
                     elif self.hud.right_arrow_rect and self.hud.right_arrow_rect.collidepoint(event.pos):
+                        self.auto_play_timer = 0.0 # Reseta timer
                         self.change_turn(1)
+                    elif self.hud.autoplay_button_rect and self.hud.autoplay_button_rect.collidepoint(event.pos):
+                        self.auto_play_enabled = not self.auto_play_enabled
+                        self.auto_play_timer = 0.0 # Reseta timer ao ligar/desligar
 
             elif self.game_state == 'end':
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -909,16 +814,20 @@ class Game:
 
     def update(self, dt):
         if self.game_state == 'animating':
-            self.animation_timer += dt
-            self.map.update_animation(dt)
-            if not self.map.animating:
-                self.game_state = 'game'
+            if not self.map.animating: self.game_state = 'game'
+            else: self.map.update_animation(dt)
+        
+        # <--- NOVO: Lógica do Auto-Play
+        if self.auto_play_enabled and self.game_state == 'game':
+            self.auto_play_timer += dt
+            if self.auto_play_timer >= AUTO_PLAY_DELAY:
+                self.auto_play_timer = 0.0
+                self.change_turn(1)
 
     def start_game(self):
         self.game_state = 'game'
         self.map = Map()
         
-        # Encontra os objetos Character completos para passar ao HUD
         selected_chars = []
         if self.menu.selected_players:
             for name in self.menu.selected_players:
@@ -927,34 +836,36 @@ class Game:
                         selected_chars.append(char)
                         break
         self.hud = HUD(selected_chars)
-        # Inicia no turno 0, sem direção
+        # <--- NOVO: Inicia no turno -1, que apenas carrega o mapa base sem animação.
         self.map.prepare_turn_animation(self.current_round, self.animation_duration)
 
     def restart_game(self):
-        """Reseta a simulação para o primeiro turno."""
-        print("Reiniciando a simulação.")
-        self.current_round = 0
+        self.current_round = -1
         self.end_of_simulation = False
-        self.game_state = 'animating'
+        self.auto_play_enabled = False # Desliga o auto-play ao reiniciar
+        self.auto_play_timer = 0.0
+        self.game_state = 'game'
         self.map.prepare_turn_animation(self.current_round, self.animation_duration)
 
     def change_turn(self, direction):
+        if self.game_state != 'game': return # Só muda de turno se não estiver animando
+        
         new_turn = self.current_round + direction
-
         if new_turn > self.max_round:
             self.end_of_simulation = True
-            print("Chegou ao final da simulação.")
+            self.auto_play_enabled = False # Para o auto-play no fim
             return
+        if new_turn < -1: return
 
-        if new_turn < 0:
-            # Impede de ir para um turno negativo
-            return
-
-        # Se chegou aqui, o turno é válido
         self.end_of_simulation = False
         self.current_round = new_turn
-        self.game_state = 'animating' # Bloqueia novos cliques de turno
-        self.map.prepare_turn_animation(self.current_round, self.animation_duration)
+        
+        if self.current_round >= 0:
+             self.game_state = 'animating'
+             self.map.prepare_turn_animation(self.current_round, self.animation_duration)
+        else: # Se voltou para -1, apenas reseta o mapa sem animação
+            self.map.prepare_turn_animation(-1, self.animation_duration)
+
 
     def draw(self):
         self._draw_background()
@@ -964,33 +875,16 @@ class Game:
             if self.map: self.map.draw(self.screen)
             if self.hud:
                 log_entries = self._parse_log_for_turn(self.current_round)
-                self.hud.draw(self.screen, self.current_round, log_entries)
+                self.hud.draw(self.screen, self.current_round, log_entries, self.auto_play_enabled)
 
-        if self.end_of_simulation:
+        if self.end_of_simulation and self.game_state != 'menu':
             self._draw_end_message()
         
         pygame.display.flip()
     
-    def _rescale_positions(self,height, width):
-        scale_x = width / 1920
-        scale_y = height / 1080
-
-        # Reescalar cidades
-        for city in self.map.cities.values():
-            city.pos = (int(city.pos[0] * scale_x), int(city.pos[1] * scale_y))
-
-        # Reescalar fontes da HUD e do mapa
-        self.map.city_font = pygame.font.SysFont(None, int(28 * scale_y))
-        self.map.edge_font = pygame.font.SysFont(None, int(22 * scale_y))
-        self.map.troop_font = pygame.font.SysFont(None, int(24 * scale_y))
-        self.hud.font = pygame.font.SysFont(None, int(28 * scale_y))
-        self.hud.round_font = pygame.font.SysFont(None, int(48 * scale_y))
-        self.hud.legend_font = pygame.font.SysFont(None, int(20 * scale_y))
-    
     def _draw_end_message(self):
-        """Desenha a mensagem de fim de simulação."""
         overlay = pygame.Surface((self.screen.get_width(), self.screen.get_height()), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 180))  # Sobreposição escura semitransparente
+        overlay.fill((0, 0, 0, 180))
         self.screen.blit(overlay, (0, 0))
 
         end_font = pygame.font.SysFont(None, 80)
@@ -999,14 +893,14 @@ class Game:
             WHITE, BLACK, (self.screen.get_rect().centerx, self.screen.get_rect().centery - 40), 2
         )
 
-        # Desenha o botão de reiniciar
         button_font = pygame.font.SysFont(None, 40)
         pygame.draw.rect(self.screen, PLAYER_COLORS[0], self.restart_button_rect, border_radius=10)
         pygame.draw.rect(self.screen, WHITE, self.restart_button_rect, 2, border_radius=10)
-        self.draw_text_with_outline(
-            "Retornar ao Início",
-            self.restart_button_rect.center,
-            button_font, WHITE, BLACK, 1
+        
+        # <--- REVISÃO: Corrigido o bug na chamada da função.
+        draw_text_with_outline(
+            self.screen, button_font, "Retornar ao Início",
+            WHITE, BLACK, self.restart_button_rect.center, 1
         )
 
     def _draw_background(self):
