@@ -188,8 +188,8 @@ class AnimatedTransport:
 
 class Map:
     def __init__(self, map_file='mapa_debug.json'):
-        self.script_dir = os.path.dirname(__file__)
-        self.map_file = os.path.join(self.script_dir, map_file)
+        self.base_path = os.path.join(os.path.dirname(__file__), '..', 'estados')
+        self.map_file = os.path.join(os.path.dirname(__file__), map_file)
         self.cities = {}
         self.edges = []
         self.animated_troops = []
@@ -344,7 +344,6 @@ class Map:
     
     def prepare_turn_animation(self, turn_number, animation_duration):
         """Anima DC do turno anterior -> AC do turno atual -> DC do turno atual."""
-        base_path = os.path.join(self.script_dir, '..', 'estados')
         print(f"Preparando animação para o turno {turn_number}...")
         self.animating = True
         # Caso especial: turno inicial
@@ -354,10 +353,10 @@ class Map:
             return True
 
         # Caminhos dos arquivos
-        path_prev_dc = os.path.join(base_path, f'estado_turno_{turn_number-1}_dc.json')
-        path_ac = os.path.join(base_path, f'estado_turno_{turn_number}_ac.json')
-        path_mc = os.path.join(base_path, f'estado_turno_{turn_number}_mc.json')
-        path_dc = os.path.join(base_path, f'estado_turno_{turn_number}_dc.json')
+        path_prev_dc = os.path.join(self.base_path, f'estado_turno_{turn_number-1}_dc.json')
+        path_ac = os.path.join(self.base_path, f'estado_turno_{turn_number}_ac.json')
+        path_mc = os.path.join(self.base_path, f'estado_turno_{turn_number}_mc.json')
+        path_dc = os.path.join(self.base_path, f'estado_turno_{turn_number}_dc.json')
 
         # Verifica se existem os arquivos necessários
         if not os.path.exists(path_ac) or not os.path.exists(path_dc) or not os.path.exists(path_mc):
@@ -467,6 +466,87 @@ class Map:
                 draw_text_with_outline(surface, self.edge_font, str(weight), WHITE, BLACK, label_pos)
 
 # ... (As classes HUD e Menu permanecem as mesmas) ...
+class LogPanel:
+    """Gerencia a exibição de um painel com mensagens de log e botões de rolagem."""
+    def __init__(self, x, y, width, height, font):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.font = font
+        self.title_font = pygame.font.SysFont(None, 24)
+        self.log_messages = []
+        self.scroll_y = 0
+        self.content_height = 0
+        self.scroll_step = 30  # Píxeis para rolar por clique
+
+        # Define os retângulos dos botões
+        self.up_button_rect = pygame.Rect(self.rect.right - 28, self.rect.top + 5, 22, 22)
+        self.down_button_rect = pygame.Rect(self.rect.right - 28, self.rect.top + 32, 22, 22)
+
+    def set_logs(self, messages):
+        self.log_messages = messages
+        self.content_height = len(self.log_messages) * (self.font.get_height() + 3)
+        self.scroll_y = 0
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            content_area_height = self.rect.height - 45 # 35 para margem superior, 10 para inferior
+            max_scroll = max(0, self.content_height - content_area_height)
+
+            if self.up_button_rect.collidepoint(event.pos):
+                self.scroll_y -= self.scroll_step
+                self.scroll_y = max(0, self.scroll_y)
+            elif self.down_button_rect.collidepoint(event.pos):
+                self.scroll_y += self.scroll_step
+                self.scroll_y = min(max_scroll, self.scroll_y)
+
+    def draw(self, surface):
+        # 1. Desenha o fundo e a borda
+        bg_surface = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+        bg_surface.fill((30, 30, 30, 210))
+        surface.blit(bg_surface, self.rect.topleft)
+        pygame.draw.rect(surface, WHITE, self.rect, 1, border_radius=3)
+
+        # 2. Desenha o título
+        title_surf = self.title_font.render("Log de Eventos do Turno", True, WHITE)
+        surface.blit(title_surf, (self.rect.x + 10, self.rect.y + 8))
+
+        # 3. Prepara a área de conteúdo rolável
+        content_area = self.rect.inflate(-40, -45) # Reduz a área para margens e botões
+        content_area.top = self.rect.top + 35
+        # A superfície de conteúdo deve ter a altura total dos logs
+        content_surface_height = max(content_area.height, self.content_height)
+        content_surface = pygame.Surface((content_area.width, content_surface_height), pygame.SRCALPHA)
+        content_surface.fill((0, 0, 0, 0)) # Garante que a superfície esteja limpa
+        y_offset = 0
+        for msg in self.log_messages:
+            msg_surf = self.font.render(msg.strip(), True, (220, 220, 220))
+            content_surface.blit(msg_surf, (0, y_offset))
+            y_offset += self.font.get_height() + 3
+
+        # 5. Blit a parte visível do conteúdo
+        # A área de origem (terceiro argumento) deve usar a altura da área visível
+        visible_rect = pygame.Rect(0, self.scroll_y, content_area.width, content_area.height)
+        surface.blit(content_surface, content_area.topleft, visible_rect)
+
+        # 6. Desenha os botões de rolagem
+        self._draw_scroll_buttons(surface)
+
+    def _draw_scroll_buttons(self, surface):
+        # Botão para Cima
+        pygame.draw.rect(surface, (80, 80, 80), self.up_button_rect, border_radius=3)
+        pygame.draw.polygon(surface, WHITE, [
+            (self.up_button_rect.centerx, self.up_button_rect.top + 6),
+            (self.up_button_rect.left + 6, self.up_button_rect.bottom - 6),
+            (self.up_button_rect.right - 6, self.up_button_rect.bottom - 6)
+        ])
+
+        # Botão para Baixo
+        pygame.draw.rect(surface, (80, 80, 80), self.down_button_rect, border_radius=3)
+        pygame.draw.polygon(surface, WHITE, [
+            (self.down_button_rect.centerx, self.down_button_rect.bottom - 6),
+            (self.down_button_rect.left + 6, self.down_button_rect.top + 6),
+            (self.down_button_rect.right - 6, self.down_button_rect.top + 6)
+        ])
+
 class HUD:
     """Gerencia a Interface do Usuário (HUD), como contador de turno e legenda."""
     def __init__(self, player_names):
@@ -474,17 +554,28 @@ class HUD:
         self.font = pygame.font.SysFont(None, 28)
         self.round_font = pygame.font.SysFont(None, 48)
         self.legend_font = pygame.font.SysFont(None, 20)
+        self.log_font = pygame.font.SysFont('Consolas', 14)
+
+        # Painel de Log
+        log_panel_width = WIDTH // 2 - 40 # Ocupa quase metade da tela
+        log_panel_height = 250
+        self.log_panel = LogPanel(20, HEIGHT - log_panel_height - 20, log_panel_width, log_panel_height, self.log_font)
+        self.current_hud_round = -1 # Para rastrear o turno e atualizar o log apenas quando necessário
 
         self.left_arrow_rect = None
         self.right_arrow_rect = None
 
-    def draw(self, surface, round_num):
+    def handle_event(self, event):
+        """Processa um evento e o passa para os subcomponentes, como o LogPanel."""
+        self.log_panel.handle_event(event)
+
+    def draw(self, surface, round_num, log_entries):
         """Desenha todos os elementos do HUD."""
         # 1. Desenha o contador de turno primeiro para obter sua posição
         turn_text_str = f"Turno: {round_num}"
         text_pos = (surface.get_width() - 180, 45)
         draw_text_with_outline(surface, self.round_font, turn_text_str, WHITE, BLACK, text_pos, 2)
-
+        
         # 2. Alinha e desenha os botões de navegação com base no texto
         turn_text_surf = self.round_font.render(turn_text_str, True, WHITE)
         text_height = turn_text_surf.get_height()
@@ -497,6 +588,14 @@ class HUD:
         
         # 3. Desenha a legenda
         self._draw_legend(surface)
+
+        # 4. Desenha o painel de log
+        # Atualiza o log apenas se o turno mudou, para não resetar a rolagem
+        if round_num != self.current_hud_round:
+            self.log_panel.set_logs(log_entries)
+            self.current_hud_round = round_num
+        
+        self.log_panel.draw(surface)
 
     def _draw_navigation_buttons(self, surface, left_rect, right_rect):
         # Botão Esquerdo
@@ -582,9 +681,11 @@ class Game:
         self.clock = pygame.time.Clock()
         self.running = True
         self.game_state = 'menu' # 'menu', 'game', 'animating'
-        self.script_dir = os.path.dirname(__file__)
-        self.round_counter = 0
-        self.max_turn = self._get_max_turn()
+        
+        self.base_path = os.path.join(os.path.dirname(__file__), '..', 'estados')
+        self.current_round = 0
+        self.max_round = self._get_max_round()
+        self.log_content = self._load_log_file()
         self.end_of_simulation = False
 
         self.animation_duration = 0.5 # em segundos
@@ -596,6 +697,7 @@ class Game:
         self.hud = None
         self.restart_button_rect = pygame.Rect(self.screen.get_rect().centerx - 150, self.screen.get_rect().centery + 50, 300, 50)
 
+
     def _load_background_tile(self):
         try:
             image = pygame.image.load("./assets/ground.jpg").convert()
@@ -604,23 +706,55 @@ class Game:
             print(f"Não foi possível carregar a imagem de fundo: {e}")
             return None
 
-    def _get_max_turn(self):
+    def _get_max_round(self):
         """Verifica a pasta de estados e retorna o número máximo de turno."""
-        base_path = os.path.join(self.script_dir, '..', 'estados')
-        if not os.path.exists(base_path):
+        if not os.path.exists(self.base_path):
             return 0
         
-        max_turn = -1
+        max_round = -1
         pattern = re.compile(r'estado_turno_(\d+)_.*\.json')
         
-        for filename in os.listdir(base_path):
+        for filename in os.listdir(self.base_path):
             match = pattern.match(filename)
             if match:
-                turn_num = int(match.group(1))
-                if turn_num > max_turn:
-                    max_turn = turn_num
+                round_num = int(match.group(1))
+                if round_num > max_round:
+                    max_round = round_num
                     
-        return max_turn if max_turn != -1 else 0
+        return max_round if max_round != -1 else 0
+
+    def _load_log_file(self):
+        """Carrega o conteúdo do arquivo de log em memória."""
+        log_path = os.path.join(self.base_path, 'log.log')
+        try:
+            with open(log_path, 'r', encoding='utf-8') as f:
+                return f.read()
+        except FileNotFoundError:
+            print(f"Arquivo de log não encontrado em {log_path}")
+            return ""
+
+    def _parse_log_for_turn(self, turn_number):
+        """Extrai as linhas de log para um turno específico."""
+        if not self.log_content:
+            return ["Log não disponível."]
+
+        # Expressão para encontrar todos os blocos de turno completos.
+        # Um bloco começa com '--- Preparando Turno ---' e vai até o próximo, ou até o fim do arquivo.
+        pattern = re.compile(r'(--- Preparando Turno ---.*?)(?=\n--- Preparando Turno ---|\Z)', re.DOTALL)
+        
+        # Encontra todos os blocos que correspondem a um ciclo de turno
+        turn_blocks = pattern.findall(self.log_content)
+
+        # Procura pelo bloco que contém o processamento do turno correto
+        processing_marker = f'--- Processando Turno {turn_number} ---'
+        for block in turn_blocks:
+            if processing_marker in block:
+                # Encontrou o bloco correto, agora limpa e retorna as linhas
+                lines = block.strip().split('\n')
+                return [line.strip() for line in lines if line.strip()]
+
+        # Se nenhum bloco foi encontrado para o turno
+        return [f"Nenhum evento registrado para o turno {turn_number}."]
 
     def run(self):
         while self.running:
@@ -630,29 +764,38 @@ class Game:
             self.update(dt)
             self.draw()
         pygame.quit()
-
     def handle_events(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+                return
 
-            if self.game_state == 'animating':
-                continue # Bloqueia input durante a animação
+            # O HUD e seus componentes (LogPanel) devem sempre receber eventos para a UI responder.
+            if self.hud:
+                self.hud.handle_event(event)
 
+            # Lógica de eventos específica para cada estado do jogo
             if self.game_state == 'menu':
-                action = self.menu.handle_event(event)
-                if action == 'start_game':
-                    self.start_game()
-            
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if self.menu.start_button_rect.collidepoint(event.pos):
+                        self.start_game()
+
             elif self.game_state == 'game':
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    if self.end_of_simulation:
-                        if self.restart_button_rect.collidepoint(event.pos):
-                            self.restart_game()
-                    elif self.hud and self.hud.left_arrow_rect and self.hud.left_arrow_rect.collidepoint(event.pos):
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    # Se o clique foi no painel de log, o evento já foi tratado. Não faz mais nada.
+                    if self.hud and self.hud.log_panel and self.hud.log_panel.rect.collidepoint(event.pos):
+                        continue
+
+                    # Se não foi no painel, verifica os botões de turno.
+                    if self.hud.left_arrow_rect and self.hud.left_arrow_rect.collidepoint(event.pos):
                         self.change_turn(-1)
-                    elif self.hud and self.hud.right_arrow_rect and self.hud.right_arrow_rect.collidepoint(event.pos):
+                    elif self.hud.right_arrow_rect and self.hud.right_arrow_rect.collidepoint(event.pos):
                         self.change_turn(1)
+
+            elif self.game_state == 'end':
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if self.restart_button_rect.collidepoint(event.pos):
+                        self.restart_game()
 
     def update(self, dt):
         if self.game_state == 'animating':
@@ -666,20 +809,20 @@ class Game:
         self.map = Map()
         self.hud = HUD(self.menu.player_names)
         # Inicia no turno 0, sem direção
-        self.map.prepare_turn_animation(self.round_counter, self.animation_duration)
+        self.map.prepare_turn_animation(self.current_round, self.animation_duration)
 
     def restart_game(self):
         """Reseta a simulação para o primeiro turno."""
         print("Reiniciando a simulação.")
-        self.round_counter = 0
+        self.current_round = 0
         self.end_of_simulation = False
         self.game_state = 'animating'
-        self.map.prepare_turn_animation(self.round_counter, self.animation_duration)
+        self.map.prepare_turn_animation(self.current_round, self.animation_duration)
 
     def change_turn(self, direction):
-        new_turn = self.round_counter + direction
+        new_turn = self.current_round + direction
 
-        if new_turn > self.max_turn:
+        if new_turn > self.max_round:
             self.end_of_simulation = True
             print("Chegou ao final da simulação.")
             return
@@ -690,9 +833,9 @@ class Game:
 
         # Se chegou aqui, o turno é válido
         self.end_of_simulation = False
-        self.round_counter = new_turn
-        self.game_state = 'animating'
-        self.map.prepare_turn_animation(self.round_counter, self.animation_duration)
+        self.current_round = new_turn
+        self.game_state = 'animating' # Bloqueia novos cliques de turno
+        self.map.prepare_turn_animation(self.current_round, self.animation_duration)
 
     def draw(self):
         self._draw_background()
@@ -700,7 +843,9 @@ class Game:
             self.menu.draw(self.screen)
         else:
             if self.map: self.map.draw(self.screen)
-            if self.hud: self.hud.draw(self.screen, self.round_counter)
+            if self.hud:
+                log_entries = self._parse_log_for_turn(self.current_round)
+                self.hud.draw(self.screen, self.current_round, log_entries)
 
         if self.end_of_simulation:
             self._draw_end_message()
