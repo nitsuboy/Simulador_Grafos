@@ -548,20 +548,29 @@ class LogPanel:
         ])
 
 class HUD:
-    """Gerencia a Interface do Usuário (HUD), como contador de turno e legenda."""
-    def __init__(self, player_names):
-        self.player_names = player_names
-        self.font = pygame.font.SysFont(None, 28)
+    """Gerencia a Interface do Usuário (HUD), como contador de turno e retratos dos jogadores."""
+    def __init__(self, selected_characters):
+        # Fontes
+        self.font = pygame.font.SysFont(None, 24)
         self.round_font = pygame.font.SysFont(None, 48)
-        self.legend_font = pygame.font.SysFont(None, 20)
         self.log_font = pygame.font.SysFont('Consolas', 14)
 
+        # Prepara dados dos jogadores
+        self.player_portraits = []
+        self.player_names = []
+        if selected_characters:
+            for char in selected_characters:
+                portrait = pygame.transform.scale(char.image, (80, 80)) # Retrato menor para o HUD
+                self.player_portraits.append(portrait)
+                self.player_names.append(char.name)
+
         # Painel de Log
-        log_panel_width = WIDTH // 2 - 40 # Ocupa quase metade da tela
+        log_panel_width = WIDTH // 2 - 40
         log_panel_height = 250
         self.log_panel = LogPanel(20, HEIGHT - log_panel_height - 20, log_panel_width, log_panel_height, self.log_font)
-        self.current_hud_round = -1 # Para rastrear o turno e atualizar o log apenas quando necessário
+        self.current_hud_round = -1
 
+        # Botões de Navegação
         self.left_arrow_rect = None
         self.right_arrow_rect = None
 
@@ -571,26 +580,24 @@ class HUD:
 
     def draw(self, surface, round_num, log_entries):
         """Desenha todos os elementos do HUD."""
-        # 1. Desenha o contador de turno primeiro para obter sua posição
+        # 1. Desenha os retratos dos jogadores
+        self._draw_player_portraits(surface)
+
+        # 2. Desenha o contador de turno e botões de navegação
         turn_text_str = f"Turno: {round_num}"
-        text_pos = (surface.get_width() - 180, 45)
+        text_pos = (surface.get_width() / 2, 45) # Centralizado no topo
         draw_text_with_outline(surface, self.round_font, turn_text_str, WHITE, BLACK, text_pos, 2)
         
-        # 2. Alinha e desenha os botões de navegação com base no texto
         turn_text_surf = self.round_font.render(turn_text_str, True, WHITE)
-        text_height = turn_text_surf.get_height()
+        text_rect = turn_text_surf.get_rect(center=text_pos)
         
-        button_y = text_pos[1] - text_height // 2
-        self.left_arrow_rect = pygame.Rect(text_pos[0] - 120, button_y, 50, text_height)
-        self.right_arrow_rect = pygame.Rect(text_pos[0] + 80, button_y, 50, text_height)
+        button_y = text_rect.centery
+        self.left_arrow_rect = pygame.Rect(text_rect.left - 70, button_y - text_rect.height // 2, 50, text_rect.height)
+        self.right_arrow_rect = pygame.Rect(text_rect.right + 20, button_y - text_rect.height // 2, 50, text_rect.height)
 
         self._draw_navigation_buttons(surface, self.left_arrow_rect, self.right_arrow_rect)
         
-        # 3. Desenha a legenda
-        self._draw_legend(surface)
-
-        # 4. Desenha o painel de log
-        # Atualiza o log apenas se o turno mudou, para não resetar a rolagem
+        # 3. Desenha o painel de log
         if round_num != self.current_hud_round:
             self.log_panel.set_logs(log_entries)
             self.current_hud_round = round_num
@@ -612,66 +619,166 @@ class HUD:
 
 
 
-    def _draw_legend(self, surface):
-        legend_items = [
-            (PLAYER_COLORS[0], f"Base {self.player_names[0]}"),
-            (PLAYER_COLORS[1], f"Base {self.player_names[1]}"),
-            (NEUTRAL_COLOR, "Cidade Neutra")
-        ]
-        x, y = 20, 20
-        for color, description in legend_items:
-            pygame.draw.circle(surface, color, (x + 10, y + 5), 10)
-            text_surface = self.legend_font.render(description, True, BLACK)
-            surface.blit(text_surface, (x + 30, y))
-            y += 25
+    def _draw_player_portraits(self, surface):
+        # Jogador 1 (esquerda)
+        if len(self.player_portraits) > 0:
+            p1_portrait = self.player_portraits[0]
+            p1_rect = p1_portrait.get_rect(topleft=(20, 20))
+            surface.blit(p1_portrait, p1_rect)
+            pygame.draw.rect(surface, (0, 100, 200), p1_rect, 3) # Borda P1
+            draw_text_with_outline(surface, self.font, self.player_names[0], WHITE, BLACK, (p1_rect.centerx, p1_rect.bottom + 15), 1)
+
+        # Jogador 2 (direita)
+        if len(self.player_portraits) > 1:
+            p2_portrait = self.player_portraits[1]
+            p2_rect = p2_portrait.get_rect(topright=(WIDTH - 20, 20))
+            surface.blit(p2_portrait, p2_rect)
+            pygame.draw.rect(surface, (200, 0, 0), p2_rect, 3) # Borda P2
+            draw_text_with_outline(surface, self.font, self.player_names[1], WHITE, BLACK, (p2_rect.centerx, p2_rect.bottom + 15), 1)
             
+class Character:
+    """Armazena dados para um personagem selecionável."""
+    def __init__(self, name, image_path, pos, size):
+        self.name = name
+        self.image = pygame.image.load(image_path)
+        self.image = pygame.transform.scale(self.image, (size, size))
+        self.rect = self.image.get_rect(center=pos)
+
 class Menu:
-    """Gerencia a tela de menu inicial."""
+    """Gerencia a tela de seleção de personagens no estilo de jogos de luta."""
     def __init__(self):
-        self.font = pygame.font.SysFont(None, 40)
+        self.font = pygame.font.SysFont(None, 32)
         self.title_font = pygame.font.SysFont(None, 72)
-        self.player_names = ["Jogador 1", "Jogador 2"]
-        self.input_rects = [
-            pygame.Rect(WIDTH // 2 - 150, HEIGHT // 2 - 50, 300, 40),
-            pygame.Rect(WIDTH // 2 - 150, HEIGHT // 2 + 10, 300, 40)
-        ]
-        self.start_button_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 80, 200, 50)
-        self.active_input = None
+        self.characters = []
+        self.selected_players = [None, None] # Armazena os nomes dos personagens selecionados
+        self.current_selection = 0 # 0 para P1, 1 para P2
+        self.start_button_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT - 100, 200, 50)
+        self.background_image = self._load_background()
+
+        self._load_characters()
+
+    def _load_background(self):
+        try:
+            image_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'fundo_menu.png')
+            image = pygame.image.load(image_path).convert()
+            return pygame.transform.scale(image, (WIDTH, HEIGHT))
+        except pygame.error as e:
+            print(f"Não foi possível carregar a imagem de fundo do menu: {e}")
+            return None
+
+    def _load_characters(self):
+        teams_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'teams')
+        if not os.path.exists(teams_path):
+            return
+
+        character_files = [f for f in os.listdir(teams_path) if f.endswith(('.png', '.jpg'))]
+        total_chars = len(character_files)
+        if total_chars == 0:
+            return
+
+        # Lógica de layout dinâmico
+        max_grid_height = HEIGHT - 300 # Deixa espaço para título e botão
+        max_grid_width = WIDTH - 100
+
+        # Determina o número de colunas e o tamanho do retrato
+        if total_chars <= 5:
+            grid_cols = total_chars
+            portrait_size = 150
+        elif total_chars <= 12:
+            grid_cols = (total_chars + 1) // 2
+            portrait_size = 120
+        else: # Para 13 ou mais, usa uma grade mais densa
+            grid_cols = (total_chars + 2) // 3
+            portrait_size = 100
+
+        grid_rows = (total_chars + grid_cols - 1) // grid_cols
+
+        # Ajusta o tamanho se a grade for muito alta ou larga
+        spacing_x = portrait_size * 1.2 # Aumentado para mais espaço horizontal
+        spacing_y = portrait_size * 1.6 # Aumentado para evitar sobreposição de nomes
+        grid_width = grid_cols * spacing_x
+        grid_height = grid_rows * spacing_y
+
+        if grid_height > max_grid_height or grid_width > max_grid_width:
+            scale_factor = min(max_grid_height / grid_height, max_grid_width / grid_width)
+            portrait_size = int(portrait_size * scale_factor)
+            spacing_x = portrait_size * 1.15
+            spacing_y = portrait_size * 1.3
+
+        # Calcula a posição inicial para centralizar a grade
+        grid_width = (grid_cols - 1) * spacing_x
+        grid_height = (grid_rows - 1) * spacing_y
+        start_x = (WIDTH - grid_width) / 2
+        start_y = (HEIGHT - grid_height) / 2
+
+        for i, filename in enumerate(character_files):
+            name = os.path.splitext(filename)[0].replace('_', ' ')
+            image_path = os.path.join(teams_path, filename)
+            
+            col = i % grid_cols
+            row = i // grid_cols
+            
+            pos_x = start_x + col * spacing_x
+            pos_y = start_y + row * spacing_y
+            
+            self.characters.append(Character(name, image_path, (pos_x, pos_y), portrait_size))
 
     def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if self.start_button_rect.collidepoint(event.pos):
-                return "start_game"
-            
-            self.active_input = None
-            for i, rect in enumerate(self.input_rects):
-                if rect.collidepoint(event.pos):
-                    self.active_input = i
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            for char in self.characters:
+                if char.rect.collidepoint(event.pos):
+                    # Caso 1: O personagem clicado já está selecionado pelo jogador atual.
+                    if char.name == self.selected_players[self.current_selection]:
+                        self.selected_players[self.current_selection] = None # Desseleciona
+                        break
+
+                    # Caso 2: O personagem clicado já foi pego pelo OUTRO jogador.
+                    other_player_idx = 1 - self.current_selection
+                    if char.name == self.selected_players[other_player_idx]:
+                        break # Impede a seleção
+
+                    # Caso 3: Seleção normal ou troca de personagem.
+                    self.selected_players[self.current_selection] = char.name
+                    # Avança para o próximo jogador (ou volta para o primeiro se o segundo já escolheu)
+                    if self.selected_players[other_player_idx] is not None:
+                        self.current_selection = other_player_idx
+                    else:
+                        self.current_selection = 1 - self.current_selection
                     break
-        
-        if event.type == pygame.KEYDOWN and self.active_input is not None:
-            if event.key == pygame.K_BACKSPACE:
-                self.player_names[self.active_input] = self.player_names[self.active_input][:-1]
-            else:
-                self.player_names[self.active_input] += event.unicode
-        return None
 
     def draw(self, surface):
-        surface.fill(DARK_GREY)
-        
-        title_text = self.title_font.render("Conquista e Sobrevivência", True, WHITE)
-        surface.blit(title_text, title_text.get_rect(center=(WIDTH // 2, HEIGHT // 4)))
+        if self.background_image:
+            surface.blit(self.background_image, (0, 0))
+        else:
+            surface.fill(DARK_GREY)
+        title_text = self.title_font.render("Selecione seu Time", True, WHITE)
+        surface.blit(title_text, title_text.get_rect(center=(WIDTH // 2, 80)))
 
-        for i, rect in enumerate(self.input_rects):
-            pygame.draw.rect(surface, (200, 200, 200), rect)
-            color = (0, 100, 200) if self.active_input == i else BLACK
-            pygame.draw.rect(surface, color, rect, 2)
-            text_surface = self.font.render(self.player_names[i], True, BLACK)
-            surface.blit(text_surface, (rect.x + 10, rect.y + 5))
+        # Desenha os personagens
+        for char in self.characters:
+            surface.blit(char.image, char.rect)
+            pygame.draw.rect(surface, WHITE, char.rect, 2) # Borda branca
+            
+            name_text = self.font.render(char.name, True, WHITE)
+            surface.blit(name_text, name_text.get_rect(center=(char.rect.centerx, char.rect.bottom + 20)))
 
-        pygame.draw.rect(surface, (0, 200, 0), self.start_button_rect)
-        start_text = self.font.render("Iniciar", True, WHITE)
-        surface.blit(start_text, start_text.get_rect(center=self.start_button_rect.center))
+        # Desenha os indicadores P1 e P2
+        player_indicator_font = pygame.font.SysFont(None, 50)
+        for i, player_name in enumerate(self.selected_players):
+            if player_name:
+                for char in self.characters:
+                    if char.name == player_name:
+                        draw_text_with_outline(
+                            surface, player_indicator_font, f"P{i+1}", (255, 215, 0), BLACK, 
+                            char.rect.center, 2
+                        )
+                        break
+
+        # Desenha o botão de iniciar quando ambos os jogadores forem selecionados
+        if all(self.selected_players):
+            pygame.draw.rect(surface, (0, 200, 0), self.start_button_rect, border_radius=10)
+            start_text = self.font.render("Iniciar Batalha", True, WHITE)
+            surface.blit(start_text, start_text.get_rect(center=self.start_button_rect.center))
 
 class Game:
     def __init__(self):
@@ -776,8 +883,11 @@ class Game:
 
             # Lógica de eventos específica para cada estado do jogo
             if self.game_state == 'menu':
+                # Passa o evento para o menu lidar com a seleção
+                self.menu.handle_event(event)
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if self.menu.start_button_rect.collidepoint(event.pos):
+                    # Verifica se o botão de iniciar foi clicado APÓS ambos os jogadores serem selecionados
+                    if all(self.menu.selected_players) and self.menu.start_button_rect.collidepoint(event.pos):
                         self.start_game()
 
             elif self.game_state == 'game':
@@ -807,7 +917,16 @@ class Game:
     def start_game(self):
         self.game_state = 'game'
         self.map = Map()
-        self.hud = HUD(self.menu.player_names)
+        
+        # Encontra os objetos Character completos para passar ao HUD
+        selected_chars = []
+        if self.menu.selected_players:
+            for name in self.menu.selected_players:
+                for char in self.menu.characters:
+                    if char.name == name:
+                        selected_chars.append(char)
+                        break
+        self.hud = HUD(selected_chars)
         # Inicia no turno 0, sem direção
         self.map.prepare_turn_animation(self.current_round, self.animation_duration)
 
