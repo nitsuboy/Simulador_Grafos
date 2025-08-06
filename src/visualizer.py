@@ -475,29 +475,43 @@ class HUD:
         self.round_font = pygame.font.SysFont(None, 48)
         self.legend_font = pygame.font.SysFont(None, 20)
 
-        self.left_arrow_rect = pygame.Rect(WIDTH - 280, 20, 50, 50)
-        self.right_arrow_rect = pygame.Rect(WIDTH - 220, 20, 50, 50)
+        self.left_arrow_rect = None
+        self.right_arrow_rect = None
 
     def draw(self, surface, round_num):
         """Desenha todos os elementos do HUD."""
-        self._draw_navigation_buttons(surface)
-        self._draw_round_counter(surface, round_num)
+        # 1. Desenha o contador de turno primeiro para obter sua posição
+        turn_text_str = f"Turno: {round_num}"
+        text_pos = (surface.get_width() - 180, 45)
+        draw_text_with_outline(surface, self.round_font, turn_text_str, WHITE, BLACK, text_pos, 2)
+
+        # 2. Alinha e desenha os botões de navegação com base no texto
+        turn_text_surf = self.round_font.render(turn_text_str, True, WHITE)
+        text_height = turn_text_surf.get_height()
+        
+        button_y = text_pos[1] - text_height // 2
+        self.left_arrow_rect = pygame.Rect(text_pos[0] - 120, button_y, 50, text_height)
+        self.right_arrow_rect = pygame.Rect(text_pos[0] + 80, button_y, 50, text_height)
+
+        self._draw_navigation_buttons(surface, self.left_arrow_rect, self.right_arrow_rect)
+        
+        # 3. Desenha a legenda
         self._draw_legend(surface)
 
-    def _draw_navigation_buttons(self, surface):
-        pygame.draw.rect(surface, (0, 150, 0), self.left_arrow_rect)
-        pygame.draw.rect(surface, WHITE, self.left_arrow_rect, 2)
+    def _draw_navigation_buttons(self, surface, left_rect, right_rect):
+        # Botão Esquerdo
+        pygame.draw.rect(surface, (0, 150, 0), left_rect, border_radius=5)
+        pygame.draw.rect(surface, WHITE, left_rect, 2, border_radius=5)
         left_arrow_text = self.font.render("<", True, WHITE)
-        surface.blit(left_arrow_text, left_arrow_text.get_rect(center=self.left_arrow_rect.center))
+        surface.blit(left_arrow_text, left_arrow_text.get_rect(center=left_rect.center))
 
-        pygame.draw.rect(surface, (0, 150, 0), self.right_arrow_rect)
-        pygame.draw.rect(surface, WHITE, self.right_arrow_rect, 2)
+        # Botão Direito
+        pygame.draw.rect(surface, (0, 150, 0), right_rect, border_radius=5)
+        pygame.draw.rect(surface, WHITE, right_rect, 2, border_radius=5)
         right_arrow_text = self.font.render(">", True, WHITE)
-        surface.blit(right_arrow_text, right_arrow_text.get_rect(center=self.right_arrow_rect.center))
+        surface.blit(right_arrow_text, right_arrow_text.get_rect(center=right_rect.center))
 
-    def _draw_round_counter(self, surface, round_num):
-        round_text = self.round_font.render(f"Turno: {round_num}", True, WHITE)
-        surface.blit(round_text, (WIDTH - 220, 80))
+
 
     def _draw_legend(self, surface):
         legend_items = [
@@ -635,9 +649,9 @@ class Game:
                     if self.end_of_simulation:
                         if self.restart_button_rect.collidepoint(event.pos):
                             self.restart_game()
-                    elif self.hud.left_arrow_rect.collidepoint(event.pos):
+                    elif self.hud and self.hud.left_arrow_rect and self.hud.left_arrow_rect.collidepoint(event.pos):
                         self.change_turn(-1)
-                    elif self.hud.right_arrow_rect.collidepoint(event.pos):
+                    elif self.hud and self.hud.right_arrow_rect and self.hud.right_arrow_rect.collidepoint(event.pos):
                         self.change_turn(1)
 
     def update(self, dt):
@@ -725,9 +739,10 @@ class Game:
         button_font = pygame.font.SysFont(None, 40)
         pygame.draw.rect(self.screen, PLAYER_COLORS[0], self.restart_button_rect, border_radius=10)
         pygame.draw.rect(self.screen, WHITE, self.restart_button_rect, 2, border_radius=10)
-        draw_text_with_outline(
-            self.screen, button_font, "Retornar ao Início",
-            WHITE, BLACK, self.restart_button_rect.center, 1
+        self.draw_text_with_outline(
+            "Retornar ao Início",
+            self.restart_button_rect.center,
+            button_font, WHITE, BLACK, 1
         )
 
     def _draw_background(self):
